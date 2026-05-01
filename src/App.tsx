@@ -191,6 +191,7 @@ export default function App() {
               purchases={purchases}
               shoppingList={list}
               warehouse={warehouse}
+              categories={categories}
               onRestore={handleRestore}
             />
           )}
