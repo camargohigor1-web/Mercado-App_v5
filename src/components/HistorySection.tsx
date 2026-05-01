@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTheme } from "../hooks/useTheme";
+import { useBrowserBackClose } from "../hooks/useBrowserBackClose";
 import { Icon } from "./Icon";
 import { Card, Badge, Empty, StatBox, BarChart, LineChart } from "./ui";
 import { fmt, fmtN, getDisplayFactor, getDisplayUnit, calcStats, calcPriceByMarket } from "../utils";
@@ -19,6 +20,8 @@ export function HistorySection({ items, markets, purchases, warehouse }: History
   const [filterCat, setFilterCat] = useState("");
   const [selectedItem, setSelectedItem] = useState<{ item: Item; stats: ReturnType<typeof calcStats> } | null>(null);
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
+  const closeSelectedItem = useBrowserBackClose(selectedItem !== null, () => setSelectedItem(null));
+  const closeSelectedPurchase = useBrowserBackClose(selectedPurchase !== null, () => setSelectedPurchase(null));
 
   const getMkt = (id: string) => markets.find(m => m.id === id)?.name || "Mercado";
   const getItem = (id: string) => items.find(i => i.id === id);
@@ -79,7 +82,7 @@ export function HistorySection({ items, markets, purchases, warehouse }: History
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-3">
-          <button onClick={() => setSelectedItem(null)} className={`${isDark ? "text-slate-500 hover:text-slate-200" : "text-slate-400 hover:text-slate-700"} p-1`}><Icon name="back" size={20} /></button>
+          <button onClick={closeSelectedItem} className={`${isDark ? "text-slate-500 hover:text-slate-200" : "text-slate-400 hover:text-slate-700"} p-1`}><Icon name="back" size={20} /></button>
           <div className="flex-1">
             <h2 className={`text-base font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>{item.name}</h2>
             <div className="flex gap-1.5 mt-0.5 flex-wrap">
@@ -180,7 +183,7 @@ export function HistorySection({ items, markets, purchases, warehouse }: History
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-3">
-          <button onClick={() => setSelectedPurchase(null)} className={`${isDark ? "text-slate-500 hover:text-slate-200" : "text-slate-400 hover:text-slate-700"} p-1`}><Icon name="back" size={20} /></button>
+          <button onClick={closeSelectedPurchase} className={`${isDark ? "text-slate-500 hover:text-slate-200" : "text-slate-400 hover:text-slate-700"} p-1`}><Icon name="back" size={20} /></button>
           <div className="flex-1">
             <h2 className={`text-base font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>{getMkt(p.marketId)}</h2>
             <p className="text-xs text-slate-500">{new Date(p.date + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}</p>

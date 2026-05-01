@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useTheme } from "../hooks/useTheme";
+import { useBrowserBackClose } from "../hooks/useBrowserBackClose";
 import { Icon } from "./Icon";
 import { Btn, Inp, Modal, Card, Badge, Empty, InfoBox, StatBox, ConfirmModal } from "./ui";
 import { uid, fmt, fmtN, getDisplayFactor, getWarehouseUnit, calcStats } from "../utils";
@@ -21,6 +22,7 @@ export function WarehouseSection({ items, purchases, warehouse, setWarehouse, ca
   const [updateModal, setUpdateModal] = useState(false);
   const [updateForm, setUpdateForm] = useState({ qty: "", date: new Date().toISOString().slice(0, 10), note: "" });
   const [deleteEntryTarget, setDeleteEntryTarget] = useState<string | null>(null);
+  const closeSelectedItem = useBrowserBackClose(selectedId !== null && !updateModal, () => setSelectedId(null));
   const qtyRef = useRef<HTMLInputElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
   const noteRef = useRef<HTMLInputElement>(null);
@@ -101,7 +103,7 @@ export function WarehouseSection({ items, purchases, warehouse, setWarehouse, ca
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-3">
-          <button onClick={() => setSelectedId(null)} className={`${isDark ? "text-slate-500 hover:text-slate-200" : "text-slate-400 hover:text-slate-700"} p-1`}><Icon name="back" size={20} /></button>
+          <button onClick={closeSelectedItem} className={`${isDark ? "text-slate-500 hover:text-slate-200" : "text-slate-400 hover:text-slate-700"} p-1`}><Icon name="back" size={20} /></button>
           <div className="flex-1">
             <h2 className={`text-base font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>{item.name}</h2>
             <div className="flex gap-1.5 mt-0.5 flex-wrap">
