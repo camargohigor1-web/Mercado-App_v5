@@ -4,7 +4,7 @@ import { useBrowserBackClose } from "../hooks/useBrowserBackClose";
 import { Icon } from "./Icon";
 import { Btn, Inp, Modal, Card, Badge, Empty, InfoBox, StatBox, ConfirmModal } from "./ui";
 import { uid, fmt, fmtN, getDisplayFactor, getWarehouseUnit, calcStats, getLowStockItems } from "../utils";
-import type { Item, Purchase, WarehouseItem } from "../types";
+import type { Item, Purchase, ShoppingListEntry, WarehouseItem } from "../types";
 
 interface WarehouseSectionProps {
   items: Item[];
@@ -12,9 +12,11 @@ interface WarehouseSectionProps {
   warehouse: WarehouseItem[];
   setWarehouse: (w: WarehouseItem[]) => void;
   categories: string[];
+  shoppingList: ShoppingListEntry[];
+  setShoppingList: (l: ShoppingListEntry[]) => void;
 }
 
-export function WarehouseSection({ items, purchases, warehouse, setWarehouse, categories }: WarehouseSectionProps) {
+export function WarehouseSection({ items, purchases, warehouse, setWarehouse, categories, shoppingList, setShoppingList }: WarehouseSectionProps) {
   const { isDark } = useTheme();
   const [view, setView] = useState<"current" | "alerts">("current");
   const [search, setSearch] = useState("");
@@ -56,6 +58,15 @@ export function WarehouseSection({ items, purchases, warehouse, setWarehouse, ca
     setSelectedId(itemId);
     setUpdateForm({ qty: "", date: new Date().toISOString().slice(0, 10), note: "" });
     setUpdateModal(true);
+  }
+
+  function isInActiveShoppingList(itemId: string): boolean {
+    return shoppingList.some(l => !l.saved && l.itemId === itemId);
+  }
+
+  function addToShoppingList(itemId: string) {
+    if (isInActiveShoppingList(itemId)) return;
+    setShoppingList([...shoppingList, { itemId, done: false, saved: false }]);
   }
 
   function saveUpdate() {
@@ -231,9 +242,11 @@ export function WarehouseSection({ items, purchases, warehouse, setWarehouse, ca
               </div>
             </div>
 
-            {lowStockItems.map(({ item, stock, avgMonthly, daysLeft, threshold, unit }) => (
+            {lowStockItems.map(({ item, stock, avgMonthly, daysLeft, threshold, unit }) => {
+              const alreadyInList = isInActiveShoppingList(item.id);
+              return (
               <Card key={item.id} onClick={() => setSelectedId(item.id)} className={isDark ? "hover:border-red-500/40" : "hover:border-red-300"}>
-                <div className="flex items-center gap-3">
+                <div className="flex items-start gap-3">
                   <div className="w-9 h-9 rounded-xl bg-red-500/20 text-red-400 flex items-center justify-center flex-shrink-0">
                     <Icon name="warn" size={15} />
                   </div>
@@ -247,11 +260,29 @@ export function WarehouseSection({ items, purchases, warehouse, setWarehouse, ca
                       <span className="text-xs text-slate-500">Consumo: <span className={isDark ? "text-slate-300" : "text-slate-700"}>{fmtN(avgMonthly, item.type === "packaged" ? 1 : 2)}/mês</span></span>
                       <span className="text-xs text-slate-500">Limite: <span className="text-amber-400">{threshold} dias</span></span>
                     </div>
+                    <div className="flex gap-2 mt-3 flex-wrap">
+                      <button
+                        onClick={e => { e.stopPropagation(); addToShoppingList(item.id); }}
+                        disabled={alreadyInList}
+                        className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all disabled:opacity-60 disabled:pointer-events-none ${alreadyInList ? isDark ? "bg-slate-800 text-slate-400" : "bg-slate-200 text-slate-500" : "bg-teal-500/15 text-teal-400 hover:bg-teal-500/25 border border-teal-500/30"}`}
+                      >
+                        <Icon name={alreadyInList ? "check" : "plus"} size={12} />
+                        {alreadyInList ? "Na lista" : "Adicionar à lista"}
+                      </button>
+                      <button
+                        onClick={e => { e.stopPropagation(); openUpdate(item.id); }}
+                        className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 border border-blue-500/30 transition-all"
+                      >
+                        <Icon name="refresh" size={12} />
+                        Atualizar estoque
+                      </button>
+                    </div>
                   </div>
                   <span className="text-slate-600 flex-shrink-0"><Icon name="chevron" size={16} /></span>
                 </div>
               </Card>
-            ))}
+              );
+            })}
           </div>
         )
       )}

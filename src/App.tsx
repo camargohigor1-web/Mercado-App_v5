@@ -146,6 +146,8 @@ export default function App() {
               warehouse={warehouse}
               setWarehouse={setWarehouse}
               categories={categories}
+              shoppingList={list}
+              setShoppingList={setList}
             />
           )}
           {tab === "purchases" && (
