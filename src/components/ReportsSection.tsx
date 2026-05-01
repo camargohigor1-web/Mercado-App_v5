@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTheme } from "../hooks/useTheme";
 import { Icon } from "./Icon";
 import { Card, Empty, StatBox, BarChart } from "./ui";
-import { fmt, fmtN, getDisplayFactor, getWarehouseUnit, calcStats } from "../utils";
+import { fmt, fmtN, getLowStockItems } from "../utils";
 import type { Item, Market, Purchase, WarehouseItem } from "../types";
 
 interface ReportsSectionProps {
@@ -72,17 +72,7 @@ export function ReportsSection({ items, markets, purchases, warehouse }: Reports
   const prevMonthSpend = sortedMonths.length >= 2 ? monthlyMap[sortedMonths[sortedMonths.length - 2]] : null;
   const trendPct = prevMonthSpend && prevMonthSpend > 0 ? ((lastMonthSpend - prevMonthSpend) / prevMonthSpend) * 100 : null;
 
-  const lowStockItems = items.filter(item => {
-    const w = warehouse.find(wh => wh.itemId === item.id);
-    if (!w) return false;
-    const stats = calcStats(item.id, items, purchases, w.entries || []);
-    if (!stats || stats.avgMonthly <= 0) return false;
-    const factor = item.type === "bulk" ? getDisplayFactor(item) : 1;
-    const stock = (w.stock || 0) * factor;
-    const avgMonthly = stats.avgMonthly * factor;
-    const daysLeft = Math.round((stock / avgMonthly) * 30);
-    return daysLeft < (item.alertDays || 15);
-  });
+  const lowStockItems = getLowStockItems(items, purchases, warehouse);
 
   const catMap: Record<string, number> = {};
   filtered.forEach(p => { p.lines.forEach(l => { const it = getItem(l.itemId); const cat = it?.category || "Outro"; catMap[cat] = (catMap[cat] || 0) + l.total; }); });
@@ -187,19 +177,12 @@ export function ReportsSection({ items, markets, purchases, warehouse }: Reports
                 <p className="text-[10px] font-black text-red-400 uppercase tracking-widest">Alertas de Estoque Baixo</p>
               </div>
               <div className="space-y-2">
-                {lowStockItems.map(item => {
-                  const w = warehouse.find(wh => wh.itemId === item.id);
-                  const stats = calcStats(item.id, items, purchases, w?.entries || []);
-                  const factor = item.type === "bulk" ? getDisplayFactor(item) : 1;
-                  const du = getWarehouseUnit(item);
-                  const stock = ((w?.stock || 0) * factor);
-                  const avgMonthly = (stats?.avgMonthly || 0) * factor;
-                  const daysLeft = avgMonthly > 0 ? Math.round((stock / avgMonthly) * 30) : 0;
+                {lowStockItems.map(({ item, stock, daysLeft, unit }) => {
                   return (
                     <div key={item.id} className={`flex items-center justify-between px-3 py-2 ${isDark ? "bg-red-500/5 border-red-500/20" : "bg-red-50 border-red-200"} border rounded-xl`}>
                       <div>
                         <p className={`text-sm font-semibold ${isDark ? "text-slate-200" : "text-slate-800"}`}>{item.name}</p>
-                        <p className="text-xs text-slate-500">{fmtN(stock, item.type === "packaged" ? 0 : 2)} {du} em estoque</p>
+                        <p className="text-xs text-slate-500">{fmtN(stock, item.type === "packaged" ? 0 : 2)} {unit} em estoque</p>
                       </div>
                       <span className="bg-red-500/15 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded-lg">~{daysLeft} dias</span>
                     </div>

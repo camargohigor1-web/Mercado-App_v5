@@ -3,7 +3,7 @@ import { useTheme } from "../hooks/useTheme";
 import { useBrowserBackClose } from "../hooks/useBrowserBackClose";
 import { Icon } from "./Icon";
 import { Btn, Inp, Modal, Card, Badge, Empty, InfoBox, StatBox, ConfirmModal } from "./ui";
-import { uid, fmt, fmtN, getDisplayFactor, getWarehouseUnit, calcStats } from "../utils";
+import { uid, fmt, fmtN, getDisplayFactor, getWarehouseUnit, calcStats, getLowStockItems } from "../utils";
 import type { Item, Purchase, WarehouseItem } from "../types";
 
 interface WarehouseSectionProps {
@@ -16,6 +16,7 @@ interface WarehouseSectionProps {
 
 export function WarehouseSection({ items, purchases, warehouse, setWarehouse, categories }: WarehouseSectionProps) {
   const { isDark } = useTheme();
+  const [view, setView] = useState<"current" | "alerts">("current");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -46,6 +47,10 @@ export function WarehouseSection({ items, purchases, warehouse, setWarehouse, ca
     .filter(({ item }) => item.name.toLowerCase().includes(search.toLowerCase()))
     .filter(({ item }) => !filterCat || item.category === filterCat)
     .sort((a, b) => (b.item.category || "").localeCompare(a.item.category || ""));
+  const allLowStockItems = getLowStockItems(items, purchases, warehouse);
+  const lowStockItems = allLowStockItems
+    .filter(({ item }) => item.name.toLowerCase().includes(search.toLowerCase()))
+    .filter(({ item }) => !filterCat || item.category === filterCat);
 
   function openUpdate(itemId: string) {
     setSelectedId(itemId);
@@ -164,10 +169,25 @@ export function WarehouseSection({ items, purchases, warehouse, setWarehouse, ca
 
   return (
     <div className="space-y-4">
+      <div className={`flex gap-2 ${isDark ? "bg-slate-900" : "bg-slate-100"} rounded-xl p-1`}>
+        <button
+          onClick={() => setView("current")}
+          className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${view === "current" ? "bg-teal-500 text-white" : isDark ? "text-slate-500 hover:text-slate-300" : "text-slate-500 hover:text-slate-700"}`}
+        >
+          Atual
+        </button>
+        <button
+          onClick={() => setView("alerts")}
+          className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${view === "alerts" ? "bg-red-500 text-white" : isDark ? "text-slate-500 hover:text-slate-300" : "text-slate-500 hover:text-slate-700"}`}
+        >
+          Alertas {allLowStockItems.length > 0 ? `(${allLowStockItems.length})` : ""}
+        </button>
+      </div>
+
       <input
         value={search}
         onChange={e => setSearch(e.target.value)}
-        placeholder="Buscar produto no armazém..."
+        placeholder={view === "alerts" ? "Buscar alerta de estoque..." : "Buscar produto no armazém..."}
         className={`w-full ${isDark ? "bg-slate-900 border-slate-700 text-slate-100 placeholder-slate-700" : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"} border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-teal-500 transition-all`}
       />
 
@@ -192,9 +212,51 @@ export function WarehouseSection({ items, purchases, warehouse, setWarehouse, ca
         </div>
       )}
 
-      <InfoBox color="blue">O armazém controla seu estoque. Compras aumentam o estoque automaticamente. Use "Atualizar Quantidade" para registrar a contagem real.</InfoBox>
+      {view === "current" && (
+        <InfoBox color="blue">O armazém controla seu estoque. Compras aumentam o estoque automaticamente. Use "Atualizar Quantidade" para registrar a contagem real.</InfoBox>
+      )}
 
-      {warehouseItems.length === 0 ? (
+      {view === "alerts" && (
+        lowStockItems.length === 0 ? (
+          <Empty icon="warehouse" title="Nenhum alerta de estoque" sub="Os produtos com estoque abaixo do limite configurado aparecerão aqui." />
+        ) : (
+          <div className="space-y-2">
+            <div className={`flex items-center gap-3 ${isDark ? "bg-red-500/5 border-red-500/20" : "bg-red-50 border-red-200"} border rounded-xl px-4 py-3`}>
+              <div className="w-8 h-8 rounded-xl bg-red-500/20 text-red-400 flex items-center justify-center flex-shrink-0">
+                <Icon name="warn" size={14} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-red-400 uppercase tracking-widest">Estoque baixo</p>
+                <p className="text-xs text-slate-500">{lowStockItems.length} produto{lowStockItems.length === 1 ? "" : "s"} abaixo do limite de alerta.</p>
+              </div>
+            </div>
+
+            {lowStockItems.map(({ item, stock, avgMonthly, daysLeft, threshold, unit }) => (
+              <Card key={item.id} onClick={() => setSelectedId(item.id)} className={isDark ? "hover:border-red-500/40" : "hover:border-red-300"}>
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-red-500/20 text-red-400 flex items-center justify-center flex-shrink-0">
+                    <Icon name="warn" size={15} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className={`${isDark ? "text-slate-100" : "text-slate-900"} font-semibold text-sm truncate`}>{item.name}</p>
+                      <Badge color="red">~{daysLeft} dias</Badge>
+                    </div>
+                    <div className="flex gap-3 mt-0.5 flex-wrap">
+                      <span className="text-xs text-slate-500">Estoque: <span className="text-red-400 font-bold">{fmtN(stock, item.type === "packaged" ? 0 : 2)} {unit}</span></span>
+                      <span className="text-xs text-slate-500">Consumo: <span className={isDark ? "text-slate-300" : "text-slate-700"}>{fmtN(avgMonthly, item.type === "packaged" ? 1 : 2)}/mês</span></span>
+                      <span className="text-xs text-slate-500">Limite: <span className="text-amber-400">{threshold} dias</span></span>
+                    </div>
+                  </div>
+                  <span className="text-slate-600 flex-shrink-0"><Icon name="chevron" size={16} /></span>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )
+      )}
+
+      {view === "current" && (warehouseItems.length === 0 ? (
         <Empty icon="warehouse" title="Armazém vazio" sub="Registre compras para começar a rastrear o estoque dos produtos." />
       ) : (
         Object.entries(grouped).map(([cat, catItems]) => (
@@ -232,7 +294,7 @@ export function WarehouseSection({ items, purchases, warehouse, setWarehouse, ca
             </div>
           </div>
         ))
-      )}
+      ))}
 
       {updateModal && selectedId && (() => {
         const item = getItem(selectedId);

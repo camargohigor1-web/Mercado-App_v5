@@ -1,4 +1,4 @@
-import type { Item, ItemStats, Purchase, WarehouseEntry } from "../types";
+import type { Item, ItemStats, Purchase, WarehouseEntry, WarehouseItem } from "../types";
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
 export const KEYS = {
@@ -82,6 +82,51 @@ export function getWarehouseUnit(item: Item): string {
   if (!item) return "";
   if (item.type !== "bulk") return "emb";
   return item.displayUnit || item.unit || "";
+}
+
+export interface LowStockItem {
+  item: Item;
+  warehouseItem: WarehouseItem;
+  stock: number;
+  avgMonthly: number;
+  daysLeft: number;
+  threshold: number;
+  unit: string;
+}
+
+export function getLowStockItems(
+  items: Item[],
+  purchases: Purchase[],
+  warehouse: WarehouseItem[]
+): LowStockItem[] {
+  return items
+    .map(item => {
+      const warehouseItem = warehouse.find(wh => wh.itemId === item.id);
+      if (!warehouseItem) return null;
+
+      const stats = calcStats(item.id, items, purchases, warehouseItem.entries || []);
+      if (!stats || stats.avgMonthly <= 0) return null;
+
+      const factor = item.type === "bulk" ? getDisplayFactor(item) : 1;
+      const stock = (warehouseItem.stock || 0) * factor;
+      const avgMonthly = stats.avgMonthly * factor;
+      const daysLeft = Math.round((stock / avgMonthly) * 30);
+      const threshold = item.alertDays || 15;
+
+      if (daysLeft >= threshold) return null;
+
+      return {
+        item,
+        warehouseItem,
+        stock,
+        avgMonthly,
+        daysLeft,
+        threshold,
+        unit: getWarehouseUnit(item),
+      };
+    })
+    .filter((entry): entry is LowStockItem => entry !== null)
+    .sort((a, b) => a.daysLeft - b.daysLeft);
 }
 
 // ─── Stats Calculation ────────────────────────────────────────────────────────
