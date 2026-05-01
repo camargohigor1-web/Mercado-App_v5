@@ -120,29 +120,18 @@ export function ShoppingListSection({
   // Decision guide modal
   function openDecision(item: Item) { setDecisionItem(item); }
 
-  // Price compare (auto-load history)
+  // Price compare (manual market options)
   function openPriceCompare(item: Item) {
-    const stats = calcStats(item.id, items, purchases, warehouse.flatMap(w => w.entries || []));
-    const du = getDisplayUnit(item);
-    const existingOptions: { sizeNum: number; priceNum: number; unit: string }[] = [];
-    if (stats && stats.entries.length > 0) {
-      const factor = getDisplayFactor(item);
-      stats.entries.forEach(e => {
-        const size = item.type === "bulk" ? ((e.pkgQty || 0) * factor) : 1;
-        const price = e.pricePerPkg || 0;
-        if (size > 0 && price > 0) existingOptions.push({ sizeNum: size, priceNum: price, unit: du });
-      });
-    }
     setCompareItem(item);
-    setCompareOptions(existingOptions.slice(0, 5));
+    setCompareOptions([]);
     setNewOption({ size: "", price: "" });
     setPriceCompareModal(true);
   }
 
   function addCompareOption() {
     if (newOption.size && newOption.price && compareItem) {
-      const size = parseFloat(newOption.size);
-      const price = parseFloat(newOption.price);
+      const size = Number(newOption.size.replace(",", "."));
+      const price = Number(newOption.price.replace(",", "."));
       if (size > 0 && price >= 0) {
         const du = getDisplayUnit(compareItem);
         setCompareOptions([...compareOptions, { sizeNum: size, priceNum: price, unit: du }]);
@@ -427,6 +416,12 @@ export function ShoppingListSection({
                       </Card>
                     );
                   })}
+                </div>
+              )}
+              {compareOptions.length === 0 && (
+                <div className={`${isDark ? "bg-slate-900/50 border-slate-800" : "bg-slate-50 border-slate-200"} border rounded-xl px-4 py-5 text-center`}>
+                  <p className="text-xs font-semibold text-slate-500">Nenhuma opÃ§Ã£o adicionada</p>
+                  <p className="text-[10px] text-slate-600 mt-1">Digite abaixo os preÃ§os e quantidades encontrados no mercado.</p>
                 </div>
               )}
               <div className={`space-y-3 ${isDark ? "bg-slate-900/50" : "bg-slate-50"} rounded-xl p-3`}>
