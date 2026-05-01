@@ -89,7 +89,7 @@ export function calcStats(
   itemId: string,
   items: Item[],
   purchases: Purchase[],
-  warehouseEntries: WarehouseEntry[]
+  _warehouseEntries: WarehouseEntry[]
 ): ItemStats | null {
   const item = items.find((i) => i.id === itemId);
   if (!item) return null;

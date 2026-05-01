@@ -2,7 +2,7 @@ import { useContext, useRef, useState, useEffect } from "react";
 import { ThemeCtx } from "../hooks/useTheme";
 import { Icon } from "./Icon";
 import type { Item } from "../types";
-import { getDisplayUnit, getScaleOptions } from "../utils";
+import { getScaleOptions } from "../utils";
 
 // ─── Btn ──────────────────────────────────────────────────────────────────────
 interface BtnProps {
@@ -46,7 +46,7 @@ interface InpProps {
   min?: string;
   max?: string;
   onEnter?: () => void;
-  inputRef?: React.RefObject<HTMLInputElement>;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
 }
 
 export function Inp({ label, value, onChange, type = "text", placeholder, className = "", required, step, min, max, onEnter, inputRef }: InpProps) {
