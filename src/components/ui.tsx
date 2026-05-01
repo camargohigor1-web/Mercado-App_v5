@@ -2,7 +2,7 @@ import { useContext, useRef, useState, useEffect } from "react";
 import { ThemeCtx } from "../hooks/useTheme";
 import { useBrowserBackClose } from "../hooks/useBrowserBackClose";
 import { Icon } from "./Icon";
-import type { Item } from "../types";
+import type { Item, Market } from "../types";
 import { getScaleOptions } from "../utils";
 
 // ─── Btn ──────────────────────────────────────────────────────────────────────
@@ -209,6 +209,94 @@ export function ProductSearch({ label, value, onChange, items, required }: Produ
 }
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
+interface MarketSearchProps {
+  label?: string;
+  value: string;
+  onChange: (v: string) => void;
+  markets: Market[];
+  required?: boolean;
+}
+
+export function MarketSearch({ label, value, onChange, markets, required }: MarketSearchProps) {
+  const { isDark } = useContext(ThemeCtx);
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selectedMarket = markets.find((m) => m.id === value);
+
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, []);
+
+  const filtered = markets
+    .filter((m) =>
+      m.name.toLowerCase().includes(query.toLowerCase()) ||
+      (m.description || "").toLowerCase().includes(query.toLowerCase())
+    )
+    .slice(0, 20);
+
+  function select(market: Market) {
+    onChange(market.id);
+    setQuery("");
+    setOpen(false);
+  }
+
+  return (
+    <div className="flex flex-col gap-1" ref={ref}>
+      {label && (
+        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+          {label}{required && <span className="text-red-400 ml-1">*</span>}
+        </label>
+      )}
+      {selectedMarket && !open ? (
+        <div
+          className={`${isDark ? "bg-slate-900 border-teal-500 text-slate-100" : "bg-white border-teal-500 text-slate-900"} border rounded-xl px-3 py-2.5 text-sm flex items-center justify-between cursor-pointer`}
+          onClick={() => { setOpen(true); setQuery(""); }}
+        >
+          <span className="truncate">{selectedMarket.name}</span>
+          <span className="text-slate-500 text-xs ml-2 flex-shrink-0">trocar</span>
+        </div>
+      ) : (
+        <input
+          autoFocus={open}
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          placeholder={selectedMarket ? selectedMarket.name : "Digite para buscar mercado..."}
+          className={`${isDark ? "bg-slate-900 border-slate-700 text-slate-100 placeholder-slate-600" : "bg-white border-slate-300 text-slate-900 placeholder-slate-400"} border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/40 transition-all`}
+        />
+      )}
+      {open && (
+        <div className={`${isDark ? "bg-slate-900 border-slate-700" : "bg-white border-slate-300"} border rounded-xl overflow-hidden shadow-2xl z-50 max-h-52 overflow-y-auto`}>
+          {filtered.length === 0 ? (
+            <p className="text-slate-500 text-xs text-center py-4">Nenhum mercado encontrado</p>
+          ) : (
+            filtered.map((market) => (
+              <button
+                key={market.id}
+                onMouseDown={() => select(market)}
+                className={`w-full text-left px-3 py-2.5 flex items-center gap-2.5 ${isDark ? "hover:bg-slate-800 border-slate-800" : "hover:bg-slate-50 border-slate-200"} transition-colors border-b last:border-0`}
+              >
+                <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 bg-blue-500/20 text-blue-400">
+                  <Icon name="store" size={11} />
+                </div>
+                <div className="min-w-0">
+                  <p className={`${isDark ? "text-slate-100" : "text-slate-900"} text-sm font-medium truncate`}>{market.name}</p>
+                  {market.description && <p className="text-slate-500 text-[10px] truncate">{market.description}</p>}
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface ModalProps {
   title: string;
   children: React.ReactNode;

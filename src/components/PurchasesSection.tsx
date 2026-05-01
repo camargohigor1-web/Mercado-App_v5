@@ -1,8 +1,7 @@
 import { useState, useRef } from "react";
 import { useTheme } from "../hooks/useTheme";
 import { Icon } from "./Icon";
-import { Btn, Inp, Sel, Modal, Card, Empty, InfoBox, ConfirmModal } from "./ui";
-import { ProductSearch } from "./ui";
+import { Btn, Inp, Modal, Card, Empty, InfoBox, ConfirmModal, ProductSearch, MarketSearch } from "./ui";
 import { uid, fmt, fmtN, getDisplayFactor, getDisplayUnit } from "../utils";
 import type { Item, Market, Purchase, PurchaseLine, WarehouseItem } from "../types";
 
@@ -224,6 +223,16 @@ export function PurchasesSection({
   const discountVal = parseFloat(lf.discount) || 0;
   const canPreview  = lf.numPkgs && lf.pricePerPkg && +lf.numPkgs > 0 && +lf.pricePerPkg > 0 && (!isBulk || (lf.pkgQty && +lf.pkgQty > 0));
   const sorted      = [...purchases].sort((a, b) => b.date.localeCompare(a.date));
+  const marketLastPurchase = purchases.reduce<Record<string, string>>((acc, purchase) => {
+    if (!acc[purchase.marketId] || purchase.date > acc[purchase.marketId]) acc[purchase.marketId] = purchase.date;
+    return acc;
+  }, {});
+  const marketsByRecent = [...markets].sort((a, b) => {
+    const dateA = marketLastPurchase[a.id] || "";
+    const dateB = marketLastPurchase[b.id] || "";
+    if (dateA !== dateB) return dateB.localeCompare(dateA);
+    return a.name.localeCompare(b.name);
+  });
 
   // ── Detail view ───────────────────────────────────────────────────────────
   if (view === "detail" && selected) {
@@ -288,7 +297,7 @@ export function PurchasesSection({
           <h2 className={`text-base font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>{editingPurchase ? "Editar Compra" : "Nova Compra"}</h2>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <Sel label="Mercado" value={form.marketId} onChange={v => setForm({ ...form, marketId: v })} options={markets.map(m => ({ value: m.id, label: m.name }))} placeholder="Selecionar..." required />
+          <MarketSearch label="Mercado" value={form.marketId} onChange={v => setForm({ ...form, marketId: v })} markets={marketsByRecent} required />
           <Inp label="Data" type="date" value={form.date} onChange={v => setForm({ ...form, date: v })} />
         </div>
         <Inp label="Observação da compra (opcional)" value={form.note} onChange={v => setForm({ ...form, note: v })} placeholder="Ex: Compra de fim de mês, promoção relâmpago..." />
