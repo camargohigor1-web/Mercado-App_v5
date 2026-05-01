@@ -19,6 +19,7 @@ export function ShoppingListSection({
   items, markets, purchases, warehouse, shoppingList, setShoppingList, onConvertToPurchase,
 }: ShoppingListSectionProps) {
   const { isDark } = useTheme();
+  const [listMode, setListMode] = useState<"plan" | "market">("plan");
   const [search, setSearch] = useState("");
   const [editModal, setEditModal] = useState(false);
   const [editName, setEditName] = useState("");
@@ -147,6 +148,26 @@ export function ShoppingListSection({
     return analyzed.reduce((min, curr) => curr.pricePerUnit < min.pricePerUnit ? curr : min);
   }
 
+  function getItemInsights(item: Item, stats: ReturnType<typeof calcStats>) {
+    if (!stats) return null;
+    const factor = getDisplayFactor(item);
+    const du = getDisplayUnit(item);
+    if (item.type === "bulk") {
+      return {
+        consumption: `${fmtN(stats.avgMonthly * factor, 2)} ${du}/mês`,
+        avg: `${fmt(stats.avgPrice / factor)}/${du}`,
+        last: `${fmt(stats.lastPrice / factor)}/${du}`,
+        min: `${fmt(stats.minPrice / factor)}/${du}`,
+      };
+    }
+    return {
+      consumption: `${fmtN(stats.avgMonthly, 1)} emb/mês`,
+      avg: `${fmt(stats.avgPrice)}/emb`,
+      last: `${fmt(stats.lastPrice)}/emb`,
+      min: `${fmt(stats.minPrice)}/emb`,
+    };
+  }
+
   const listFull = activeList.map(l => ({
     ...l,
     item: items.find(i => i.id === l.itemId),
@@ -165,8 +186,23 @@ export function ShoppingListSection({
 
   return (
     <div className="space-y-4">
+      <div className={`flex gap-2 ${isDark ? "bg-slate-900" : "bg-slate-100"} rounded-xl p-1`}>
+        <button
+          onClick={() => setListMode("plan")}
+          className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${listMode === "plan" ? "bg-teal-500 text-white" : isDark ? "text-slate-500 hover:text-slate-300" : "text-slate-500 hover:text-slate-700"}`}
+        >
+          Planejar
+        </button>
+        <button
+          onClick={() => setListMode("market")}
+          className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${listMode === "market" ? "bg-blue-500 text-white" : isDark ? "text-slate-500 hover:text-slate-300" : "text-slate-500 hover:text-slate-700"}`}
+        >
+          Mercado
+        </button>
+      </div>
+
       {/* Toolbar */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+      {listMode === "plan" && <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex gap-2">
           {available.some(({ stats }) => stats !== null) && (
             <Btn onClick={autoSuggest} variant="outline" size="sm"><Icon name="history" size={13} />Sugerir</Btn>
@@ -185,10 +221,102 @@ export function ShoppingListSection({
             </>
           )}
         </div>
-      </div>
+      </div>}
+
+      {/* Market mode */}
+      {listMode === "market" && (
+        listFull.length === 0 ? (
+          <Empty icon="list" title="Lista vazia" sub="Volte para Planejar e adicione os produtos antes de ir ao mercado." />
+        ) : (
+          <div className="space-y-3">
+            <div className={`flex items-center justify-between px-4 py-3 ${isDark ? "bg-slate-900 border-slate-800" : "bg-slate-50 border-slate-200"} border rounded-xl`}>
+              <div>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Modo mercado</p>
+                <p className={`text-sm font-bold ${isDark ? "text-slate-100" : "text-slate-900"}`}>{pending.length} pendente{pending.length === 1 ? "" : "s"} · {done.length} comprado{done.length === 1 ? "" : "s"}</p>
+              </div>
+              {done.length > 0 && <Btn onClick={clearDone} variant="ghost" size="sm">Limpar</Btn>}
+            </div>
+
+            {pending.length === 0 ? (
+              <Empty icon="check" title="Tudo marcado" sub="Os itens da lista foram marcados como comprados." />
+            ) : (
+              Object.entries(pendingByCategory).map(([cat, catItems]) => (
+                <div key={cat}>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 px-1">{cat}</p>
+                  <div className="space-y-2">
+                    {catItems.map(({ itemId, item, stats }) => {
+                      const it = item!;
+                      const du = getDisplayUnit(it);
+                      const insights = getItemInsights(it, stats);
+                      return (
+                        <Card key={itemId} className={isDark ? "border-slate-800" : "border-slate-200"}>
+                          <div className="space-y-3">
+                            <div className="flex items-start gap-3">
+                              <button
+                                onClick={() => toggle(itemId)}
+                                className="mt-0.5 w-9 h-9 rounded-xl bg-teal-500/15 text-teal-400 border border-teal-500/30 flex-shrink-0 flex items-center justify-center"
+                                title="Marcar comprado"
+                              >
+                                <Icon name="check" size={17} />
+                              </button>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className={`${isDark ? "text-slate-100" : "text-slate-900"} text-base font-black`}>{it.name}</p>
+                                  <Badge color={it.type === "bulk" ? "teal" : "amber"}>{it.type === "bulk" ? du : `${fmtN(it.pkgSize || 0, 0)} ${it.pkgUnit}`}</Badge>
+                                </div>
+                                {insights ? (
+                                  <div className="grid grid-cols-3 gap-2 mt-2">
+                                    <div className={`${isDark ? "bg-slate-800/70" : "bg-slate-100"} rounded-xl px-2.5 py-2`}>
+                                      <p className="text-[9px] text-slate-500">Consumo</p>
+                                      <p className="text-[11px] font-bold text-slate-300">{insights.consumption}</p>
+                                    </div>
+                                    <div className="bg-green-500/10 rounded-xl px-2.5 py-2">
+                                      <p className="text-[9px] text-green-700">Médio</p>
+                                      <p className="text-[11px] font-bold text-green-400">{insights.avg}</p>
+                                    </div>
+                                    <div className="bg-blue-500/10 rounded-xl px-2.5 py-2">
+                                      <p className="text-[9px] text-blue-700">Último</p>
+                                      <p className="text-[11px] font-bold text-blue-400">{insights.last}</p>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-slate-600 mt-1">Sem histórico de compras</p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <Btn onClick={() => openPriceCompare(it)} variant="outline" size="sm" className="justify-center"><Icon name="scale" size={13} />Comparar</Btn>
+                              <Btn onClick={() => remove(itemId)} variant="ghost" size="sm" className="justify-center"><Icon name="x" size={13} />Remover</Btn>
+                            </div>
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))
+            )}
+
+            {done.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest pt-1">Já comprado ({done.length})</p>
+                {done.map(({ itemId, item }) => (
+                  <Card key={itemId} className="opacity-50">
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => toggle(itemId)} className="w-8 h-8 rounded-xl border border-teal-500 bg-teal-500 flex-shrink-0 flex items-center justify-center"><Icon name="check" size={14} /></button>
+                      <p className={`text-sm ${isDark ? "text-slate-500" : "text-slate-400"} line-through flex-1`}>{item!.name}</p>
+                      <button onClick={() => remove(itemId)} className={`p-1 ${isDark ? "text-slate-700 hover:text-red-400" : "text-slate-400 hover:text-red-500"}`}><Icon name="x" size={13} /></button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      )}
 
       {/* Active list */}
-      {listFull.length > 0 && (
+      {listMode === "plan" && listFull.length > 0 && (
         <div className="space-y-2">
           <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Para comprar ({pending.length})</p>
           {Object.entries(pendingByCategory).map(([cat, catItems]) => (
@@ -198,6 +326,7 @@ export function ShoppingListSection({
                 {catItems.map(({ itemId, item, stats }) => {
                   const it = item!;
                   const du = getDisplayUnit(it);
+                  const insights = getItemInsights(it, stats);
                   const factor = getDisplayFactor(it);
                   return (
                     <Card key={itemId}>
@@ -208,6 +337,7 @@ export function ShoppingListSection({
                             <p className={`${isDark ? "text-slate-100" : "text-slate-900"} text-sm font-semibold`}>{it.name}</p>
                             <Badge color={it.type === "bulk" ? "teal" : "amber"}>{it.type === "bulk" ? du : `${fmtN(it.pkgSize || 0, 0)} ${it.pkgUnit}`}</Badge>
                           </div>
+                          {insights && <p className="text-[10px] text-slate-600 mt-1">Consumo: <span className={isDark ? "text-slate-300" : "text-slate-700"}>{insights.consumption}</span></p>}
                           {stats ? (
                             <div className="flex flex-wrap gap-x-3 mt-1">
                               <span className="text-[10px] text-slate-600">Médio: <span className="text-green-400 font-semibold">{it.type === "bulk" ? `${fmt(stats.avgPrice / factor)}/${du}` : `${fmt(stats.avgPrice)}/emb`}</span></span>
@@ -248,7 +378,7 @@ export function ShoppingListSection({
       )}
 
       {/* Add items */}
-      <div>
+      {listMode === "plan" && <div>
         <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-2">Adicionar à lista</p>
         <Inp value={search} onChange={setSearch} placeholder="Buscar produto..." />
         {filtAvail.length === 0 ? (
@@ -277,7 +407,7 @@ export function ShoppingListSection({
             })}
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Decision Guide Modal */}
       {decisionItem && (() => {
