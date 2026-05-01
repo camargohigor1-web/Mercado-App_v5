@@ -1,3 +1,4 @@
+import { useBrowserBackClose } from "../hooks/useBrowserBackClose";
 import { Icon } from "./Icon";
 
 interface RightDrawerProps {
@@ -19,22 +20,24 @@ const drawerTabs = [
 
 export function RightDrawer({ open, onClose, tab, setTab, theme, setTheme }: RightDrawerProps) {
   const isDark = theme === "dark";
+  const closeDrawer = useBrowserBackClose(open, onClose);
+
   return (
     <>
-      {open && <div className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm" onClick={onClose} />}
+      {open && <div className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm" onClick={closeDrawer} />}
       <div className={`fixed top-0 right-0 h-full w-72 max-w-[85vw] z-40 ${isDark ? "bg-slate-950 border-l border-slate-800" : "bg-white border-l border-slate-200"} shadow-2xl transition-transform duration-300 ease-in-out ${open ? "translate-x-0" : "translate-x-full"}`}>
         <div className={`flex items-center justify-between px-5 pt-8 pb-4 ${isDark ? "border-b border-slate-800" : "border-b border-slate-200"}`}>
           <div>
             <p className="text-[10px] font-black text-teal-500 uppercase tracking-widest">MercadoApp</p>
             <p className={`text-sm font-black ${isDark ? "text-slate-100" : "text-slate-900"} mt-0.5`}>Mais opções</p>
           </div>
-          <button onClick={onClose} className={`${isDark ? "text-slate-500 hover:text-slate-200 hover:bg-slate-800" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"} p-1.5 rounded-xl transition-colors`}>
+          <button onClick={closeDrawer} className={`${isDark ? "text-slate-500 hover:text-slate-200 hover:bg-slate-800" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"} p-1.5 rounded-xl transition-colors`}>
             <Icon name="x" size={18} />
           </button>
         </div>
         <div className="px-3 py-4 space-y-1">
           {drawerTabs.map(t => (
-            <button key={t.id} onClick={() => { setTab(t.id); onClose(); }}
+            <button key={t.id} onClick={() => { setTab(t.id); closeDrawer(); }}
               className={`w-full flex items-center gap-3 px-3 py-3.5 rounded-xl text-left transition-all ${tab === t.id ? (isDark ? "bg-teal-500/15 border border-teal-500/30" : "bg-teal-50 border border-teal-300") : (isDark ? "hover:bg-slate-800/60" : "hover:bg-slate-50")}`}>
               <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${tab === t.id ? (isDark ? "bg-teal-500/20 text-teal-400" : "bg-teal-100 text-teal-700") : (isDark ? "bg-slate-800 text-slate-500" : "bg-slate-100 text-slate-500")}`}>
                 <Icon name={t.icon} size={16} />

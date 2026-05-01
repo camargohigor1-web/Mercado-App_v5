@@ -1,5 +1,6 @@
 import { useContext, useRef, useState, useEffect } from "react";
 import { ThemeCtx } from "../hooks/useTheme";
+import { useBrowserBackClose } from "../hooks/useBrowserBackClose";
 import { Icon } from "./Icon";
 import type { Item } from "../types";
 import { getScaleOptions } from "../utils";
@@ -216,12 +217,14 @@ interface ModalProps {
 
 export function Modal({ title, children, onClose }: ModalProps) {
   const { isDark } = useContext(ThemeCtx);
+  const closeModal = useBrowserBackClose(true, onClose);
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 backdrop-blur-sm">
       <div className={`${isDark ? "bg-slate-950 border-slate-800" : "bg-white border-slate-200"} border rounded-t-3xl w-full max-w-lg max-h-[92vh] overflow-y-auto shadow-2xl`}>
         <div className={`flex items-center justify-between px-5 pt-5 pb-4 sticky top-0 ${isDark ? "bg-slate-950" : "bg-white"} z-10 ${isDark ? "border-b border-slate-800" : "border-b border-slate-200"}`}>
           <h2 className={`text-sm font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>{title}</h2>
-          <button onClick={onClose} className={`${isDark ? "text-slate-500 hover:text-slate-200 hover:bg-slate-800" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"} p-1 rounded-lg transition-colors`}>
+          <button onClick={closeModal} className={`${isDark ? "text-slate-500 hover:text-slate-200 hover:bg-slate-800" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"} p-1 rounded-lg transition-colors`}>
             <Icon name="x" size={17} />
           </button>
         </div>
