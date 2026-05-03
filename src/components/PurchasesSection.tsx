@@ -1,7 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useTheme } from "../hooks/useTheme";
 import { Icon } from "./Icon";
-import { Btn, Inp, Modal, Card, Empty, InfoBox, ConfirmModal, ProductSearch, MarketSearch } from "./ui";
+import { Btn, Inp, Modal, Card, InfoBox, ConfirmModal, ProductSearch, MarketSearch } from "./ui";
 import { uid, fmt, fmtN, getDisplayFactor, getDisplayUnit } from "../utils";
 import type { Item, Market, Purchase, PurchaseLine, WarehouseItem } from "../types";
 
@@ -21,7 +21,7 @@ export function PurchasesSection({
   initialLines, onCreatedFromList,
 }: PurchasesSectionProps) {
   const { isDark } = useTheme();
-  const [view, setView] = useState<"list" | "new" | "detail">(initialLines ? "new" : "list");
+  const [view, setView] = useState<"list" | "new" | "detail">(initialLines ? "new" : "new");
   const [selected, setSelected] = useState<Purchase | null>(null);
   const [editingPurchase, setEditingPurchase] = useState<Purchase | null>(null);
   const [form, setForm] = useState<{ marketId: string; date: string; note: string; lines: PurchaseLine[] }>({
@@ -37,6 +37,21 @@ export function PurchasesSection({
   // Export selection
   const [selecting, setSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Reset form whenever initialLines changes (e.g. "Repetir compra" triggered again)
+  useEffect(() => {
+    if (initialLines && initialLines.length > 0) {
+      setForm({
+        marketId: markets[0]?.id || "",
+        date: new Date().toISOString().slice(0, 10),
+        note: "",
+        lines: initialLines,
+      });
+      setView("new");
+      setEditingPurchase(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialLines]);
 
   const numPkgsRef = useRef<HTMLInputElement>(null);
   const pkgQtyRef = useRef<HTMLInputElement>(null);
@@ -239,7 +254,7 @@ export function PurchasesSection({
     const p = selected;
     const mkt = markets.find(m => m.id === p.marketId);
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 animate-slide-in-right">
         <div className="flex items-center gap-3">
           <button onClick={() => setView("list")} className={`${isDark ? "text-slate-500 hover:text-slate-200" : "text-slate-400 hover:text-slate-700"} p-1`}><Icon name="back" size={20} /></button>
           <div className="flex-1">
@@ -290,25 +305,56 @@ export function PurchasesSection({
 
   // ── New / Edit view ───────────────────────────────────────────────────────
   if (view === "new") {
+    const total = form.lines.reduce((s, l) => s + l.total, 0);
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-3">
-          <button onClick={() => { setView("list"); setEditingPurchase(null); }} className={`${isDark ? "text-slate-500 hover:text-slate-200" : "text-slate-400 hover:text-slate-700"} p-1`}><Icon name="back" size={20} /></button>
-          <h2 className={`text-base font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>{editingPurchase ? "Editar Compra" : "Nova Compra"}</h2>
+          <button
+            onClick={() => { setView("list"); setEditingPurchase(null); }}
+            className={`${isDark ? "text-slate-500 hover:text-slate-200" : "text-slate-400 hover:text-slate-700"} p-1`}
+          >
+            <Icon name="back" size={20} />
+          </button>
+          <div className="flex-1">
+            <h2 className={`text-base font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>
+              {editingPurchase ? "Editar Compra" : "Nova Compra"}
+            </h2>
+            {form.lines.length > 0 && (
+              <p className={`text-xs mt-0.5 ${isDark ? "text-slate-500" : "text-slate-400"}`}>
+                {form.lines.length} {form.lines.length === 1 ? "item" : "itens"} · <span className="text-teal-400 font-bold">{fmt(total)}</span>
+              </p>
+            )}
+          </div>
         </div>
+
         <div className="grid grid-cols-2 gap-3">
           <MarketSearch label="Mercado" value={form.marketId} onChange={v => setForm({ ...form, marketId: v })} markets={marketsByRecent} required />
           <Inp label="Data" type="date" value={form.date} onChange={v => setForm({ ...form, date: v })} />
         </div>
-        <Inp label="Observação da compra (opcional)" value={form.note} onChange={v => setForm({ ...form, note: v })} placeholder="Ex: Compra de fim de mês, promoção relâmpago..." />
+
+        <Inp label="Observação (opcional)" value={form.note} onChange={v => setForm({ ...form, note: v })} placeholder="Ex: Compra de fim de mês..." />
+
         <div>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Itens da compra</p>
-            <Btn onClick={() => openLine()} size="sm" disabled={items.length === 0}><Icon name="plus" size={13} />Adicionar</Btn>
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Itens</p>
+            <Btn onClick={() => openLine()} size="sm" disabled={items.length === 0}>
+              <Icon name="plus" size={13} />Adicionar item
+            </Btn>
           </div>
+
           {form.lines.length === 0 ? (
-            <div className={`border-2 border-dashed ${isDark ? "border-slate-800" : "border-slate-200"} rounded-2xl py-10 text-center`}>
-              <p className="text-slate-600 text-sm">Nenhum item adicionado</p>
+            <div
+              className={`border-2 border-dashed rounded-2xl py-10 text-center cursor-pointer transition-colors ${isDark ? "border-slate-800 hover:border-teal-500/40" : "border-slate-200 hover:border-teal-400/50"}`}
+              onClick={() => items.length > 0 && openLine()}
+            >
+              {items.length === 0 ? (
+                <p className={`text-sm ${isDark ? "text-slate-600" : "text-slate-400"}`}>Cadastre produtos antes de adicionar itens</p>
+              ) : (
+                <>
+                  <p className={`text-sm font-semibold ${isDark ? "text-slate-500" : "text-slate-400"}`}>Toque para adicionar o primeiro item</p>
+                  <p className={`text-xs mt-1 ${isDark ? "text-slate-700" : "text-slate-300"}`}>ou use o botão "Adicionar item" acima</p>
+                </>
+              )}
             </div>
           ) : (
             <div className="space-y-2">
@@ -333,16 +379,34 @@ export function PurchasesSection({
                   </Card>
                 );
               })}
-              <div className="flex justify-between items-center pt-1 px-1">
-                <span className="text-xs text-slate-500">{form.lines.length} {form.lines.length === 1 ? "item" : "itens"}</span>
-                <span className="text-teal-400 font-black">{fmt(form.lines.reduce((s, l) => s + l.total, 0))}</span>
+
+              {/* Running total */}
+              <div className={`flex justify-between items-center px-4 py-3 rounded-2xl ${isDark ? "bg-slate-900 border border-slate-800" : "bg-slate-50 border border-slate-200"}`}>
+                <span className={`text-sm ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                  {form.lines.length} {form.lines.length === 1 ? "item" : "itens"}
+                </span>
+                <span className="text-teal-400 font-black text-lg">{fmt(total)}</span>
               </div>
             </div>
           )}
         </div>
-        <div className="flex gap-3 pt-1">
-          <Btn onClick={() => { setView("list"); setEditingPurchase(null); }} variant="secondary" className="flex-1">Cancelar</Btn>
-          <Btn onClick={savePurchase} disabled={form.lines.length === 0 || !form.date || !form.marketId} className="flex-1">{editingPurchase ? "Atualizar" : "Salvar Compra"}</Btn>
+
+        {/* Save button — primary CTA, always visible */}
+        <div className="flex gap-3 pt-1 pb-2">
+          <Btn
+            onClick={() => { setView("list"); setEditingPurchase(null); }}
+            variant="secondary"
+            className="flex-1"
+          >
+            Cancelar
+          </Btn>
+          <Btn
+            onClick={savePurchase}
+            disabled={form.lines.length === 0 || !form.date || !form.marketId}
+            className="flex-1"
+          >
+            {editingPurchase ? "Atualizar" : "Salvar compra"}
+          </Btn>
         </div>
 
         {lineModal && (
@@ -437,7 +501,22 @@ export function PurchasesSection({
       )}
 
       {sorted.length === 0 ? (
-        <Empty icon="cart" title="Nenhuma compra registrada" sub="Registre suas compras para acompanhar consumo e preços ao longo do tempo." />
+        <div className="flex flex-col items-center text-center py-12 gap-4 px-4">
+          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${isDark ? "bg-slate-800" : "bg-slate-100"}`}>
+            <Icon name="cart" size={24} />
+          </div>
+          <div className="space-y-1">
+            <p className={`font-black text-sm ${isDark ? "text-slate-200" : "text-slate-800"}`}>Nenhuma compra registrada</p>
+            <p className={`text-xs ${isDark ? "text-slate-500" : "text-slate-400"}`}>Registre suas compras para acompanhar consumo e preços ao longo do tempo.</p>
+          </div>
+          <button
+            onClick={() => { setForm({ marketId: markets[0]?.id || "", date: new Date().toISOString().slice(0, 10), note: "", lines: [] }); setEditingPurchase(null); setView("new"); }}
+            disabled={items.length === 0 || markets.length === 0}
+            className="px-5 py-2.5 rounded-xl bg-teal-500 text-white text-xs font-black shadow-lg shadow-teal-500/25 active:scale-95 transition-transform disabled:opacity-40"
+          >
+            Registrar primeira compra
+          </button>
+        </div>
       ) : (
         <div className="space-y-2">
           {sorted.map(p => (

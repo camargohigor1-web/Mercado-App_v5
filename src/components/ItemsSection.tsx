@@ -143,7 +143,28 @@ export function ItemsSection({ items, setItems, categories, setCategories }: Ite
       )}
 
       {filtered.length === 0 ? (
-        <Empty icon="package" title={search ? "Nenhum resultado" : "Nenhum produto cadastrado"} sub={!search ? "Cadastre os produtos que você compra regularmente." : undefined} />
+        search ? (
+          <Empty icon="package" title="Nenhum resultado" />
+        ) : (
+          <div className="flex flex-col items-center text-center py-12 gap-4 px-4">
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${isDark ? "bg-slate-800" : "bg-slate-100"}`}>
+              <Icon name="package" size={24} />
+            </div>
+            <div className="space-y-1">
+              <p className={`font-black text-sm ${isDark ? "text-slate-200" : "text-slate-800"}`}>Nenhum produto cadastrado</p>
+              <p className={`text-xs ${isDark ? "text-slate-500" : "text-slate-400"}`}>
+                Cadastre os produtos que você compra regularmente para ter histórico de preços e controle de estoque.
+              </p>
+            </div>
+            <button
+              onClick={() => { setEditing(null); setModal(true); }}
+              className="px-5 py-2.5 rounded-xl bg-teal-500 text-white text-xs font-black shadow-lg shadow-teal-500/25 active:scale-95 transition-transform flex items-center gap-2"
+            >
+              <Icon name="plus" size={14} />
+              Cadastrar primeiro produto
+            </button>
+          </div>
+        )
       ) : (
         Object.entries(grouped).map(([cat, group]) => (
           <div key={cat}>

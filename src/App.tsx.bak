@@ -1,8 +1,6 @@
 import { useState, useCallback } from "react";
 import { ThemeCtx } from "./hooks/useTheme";
 import { Icon } from "./components/Icon";
-import { SplashScreen } from "./components/SplashScreen";
-import { HomeSection } from "./components/HomeSection";
 import { ItemsSection } from "./components/ItemsSection";
 import { MarketsSection } from "./components/MarketsSection";
 import { PurchasesSection } from "./components/PurchasesSection";
@@ -16,12 +14,17 @@ import { KEYS, load, save, DEFAULT_CATEGORIES } from "./utils";
 import type { Item, Market, Purchase, ShoppingListEntry, WarehouseItem, PurchaseLine } from "./types";
 
 // ─── Tab config ───────────────────────────────────────────────────────────────
-const EXTRA_TABS = ["purchases", "markets", "backup", "reports", "items"];
+const MAIN_TABS = [
+  { id: "shopping",  label: "Lista",   icon: "list"      },
+  { id: "history",   label: "Hist.",   icon: "history"   },
+  { id: "warehouse", label: "Armazém", icon: "warehouse" },
+];
+
+const EXTRA_TABS = ["purchases", "items", "markets", "backup", "reports"];
 
 const TITLES: Record<string, string> = {
-  home:      "Início",
   shopping:  "Lista de Compras",
-  purchases: "Nova Compra",
+  purchases: "Minhas Compras",
   history:   "Histórico",
   warehouse: "Armazém",
   items:     "Produtos",
@@ -32,9 +35,8 @@ const TITLES: Record<string, string> = {
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [tab, setTab]       = useState("home");
+  const [tab, setTab]       = useState("shopping");
   const [drawerOpen, setDrawer] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
   const [theme, setThemeRaw]    = useState<string>(() => load(KEYS.theme, "dark"));
 
   const [items,     setItemsRaw]     = useState<Item[]>            (() => load(KEYS.items,        []));
@@ -58,7 +60,6 @@ export default function App() {
 
   // ── Convert shopping list → new purchase ───────────────────────────────────
   const [pendingLines, setPendingLines] = useState<PurchaseLine[] | null>(null);
-  const [pendingKey, setPendingKey] = useState(0);
 
   function handleConvertToPurchase(lines: PurchaseLine[]) {
     setPendingLines(lines);
@@ -69,19 +70,6 @@ export default function App() {
     setPendingLines(null);
     // Clear checked items from list after converting
     setList(list.filter(l => l.saved));
-  }
-
-  // ── Repeat purchase from home ───────────────────────────────────────────────
-  function handleRepeatPurchase(purchase: Purchase) {
-    setPendingLines(purchase.lines.map(l => ({ ...l })));
-    setPendingKey(Date.now());
-    setTab("purchases");
-  }
-
-  function handleGoToNewPurchase() {
-    setPendingLines(null);
-    setPendingKey(Date.now());
-    setTab("purchases");
   }
 
   // ── Restore from backup ────────────────────────────────────────────────────
@@ -107,26 +95,22 @@ export default function App() {
 
   return (
     <ThemeCtx.Provider value={{ isDark }}>
-      {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
       <div className={`min-h-screen ${isDark ? "bg-slate-950 text-slate-100" : "bg-white text-slate-900"} flex flex-col max-w-lg mx-auto`}>
 
         {/* ── Header ─────────────────────────────────────────────────────────── */}
-        <div className={`sticky top-0 z-20 ${isDark ? "bg-slate-950/95" : "bg-white/95"} backdrop-blur px-4 pt-6 pb-3 ${isDark ? "border-b border-slate-900" : "border-b border-slate-100"}`}>
-          <div className="flex items-center gap-3">
-            {/* App icon */}
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center shadow-lg shadow-teal-500/30 flex-shrink-0 overflow-hidden" style={{ background: "linear-gradient(135deg,#0f766e,#14b8a6)" }}>
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 2 3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/>
-              </svg>
+        <div className={`sticky top-0 z-20 ${isDark ? "bg-slate-950/95" : "bg-white/95"} backdrop-blur px-4 pt-6 pb-3 ${isDark ? "border-b border-slate-900" : "border-b border-slate-200"}`}>
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-xl bg-teal-500 flex items-center justify-center shadow-lg shadow-teal-500/30">
+              <Icon name="cart" size={13} />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[9px] font-black text-teal-500 uppercase tracking-widest leading-none">MercadoApp</p>
-              <p className={`text-sm font-black truncate ${isDark ? "text-slate-200" : "text-slate-800"} leading-tight mt-0.5`}>{TITLES[tab]}</p>
+            <div className="flex-1">
+              <p className="text-[10px] font-black text-teal-500 uppercase tracking-widest leading-none">MercadoApp</p>
+              <p className={`text-xs font-semibold ${isDark ? "text-slate-300" : "text-slate-700"} leading-tight mt-0.5`}>{TITLES[tab]}</p>
             </div>
             {isExtra && (
               <button
-                onClick={() => setTab("home")}
-                className={`${isDark ? "text-slate-500 hover:text-slate-200 hover:bg-slate-800" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"} p-1.5 rounded-xl transition-colors flex-shrink-0`}
+                onClick={() => setTab("shopping")}
+                className={`${isDark ? "text-slate-500 hover:text-slate-200 hover:bg-slate-800" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"} p-1.5 rounded-xl transition-colors`}
               >
                 <Icon name="x" size={16} />
               </button>
@@ -136,21 +120,6 @@ export default function App() {
 
         {/* ── Content ────────────────────────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto px-4 py-4 pb-28">
-          <div key={tab} className="animate-fade-slide-up">
-          {tab === "home" && (
-            <HomeSection
-              items={items}
-              markets={markets}
-              purchases={purchases}
-              warehouse={warehouse}
-              shoppingList={list}
-              onGoToNewPurchase={handleGoToNewPurchase}
-              onGoToHistory={() => setTab("history")}
-              onGoToWarehouse={() => setTab("warehouse")}
-              onGoToItems={() => setTab("items")}
-              onRepeatPurchase={handleRepeatPurchase}
-            />
-          )}
           {tab === "shopping" && (
             <ShoppingListSection
               items={items}
@@ -160,7 +129,6 @@ export default function App() {
               shoppingList={list}
               setShoppingList={setList}
               onConvertToPurchase={handleConvertToPurchase}
-              onGoToItems={() => setTab("items")}
             />
           )}
           {tab === "history" && (
@@ -169,8 +137,6 @@ export default function App() {
               markets={markets}
               purchases={purchases}
               warehouse={warehouse}
-              onGoToNewPurchase={handleGoToNewPurchase}
-              onRepeatPurchase={handleRepeatPurchase}
             />
           )}
           {tab === "warehouse" && (
@@ -182,12 +148,10 @@ export default function App() {
               categories={categories}
               shoppingList={list}
               setShoppingList={setList}
-              onGoToNewPurchase={handleGoToNewPurchase}
             />
           )}
           {tab === "purchases" && (
             <PurchasesSection
-              key={pendingKey}
               items={items}
               markets={markets}
               purchases={purchases}
@@ -231,43 +195,22 @@ export default function App() {
               onRestore={handleRestore}
             />
           )}
-          </div>{/* end animate wrapper */}
         </div>
 
         {/* ── Bottom Nav ─────────────────────────────────────────────────────── */}
         <div className={`fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg ${isDark ? "bg-slate-950/95" : "bg-white/95"} backdrop-blur ${isDark ? "border-t border-slate-900" : "border-t border-slate-200"} z-20`}>
-          <div className="flex items-end pb-2">
-
-            {/* Lista */}
-            <NavTab id="shopping" label="Lista" icon="list" active={tab === "shopping"} isDark={isDark} onClick={() => setTab("shopping")} />
-
-            {/* Histórico */}
-            <NavTab id="history" label="Hist." icon="history" active={tab === "history"} isDark={isDark} onClick={() => setTab("history")} />
-
-            {/* Início — centro destacado */}
-            <div className="flex-1 flex flex-col items-center pb-1">
+          <div className="flex">
+            {MAIN_TABS.map(t => (
               <button
-                onClick={() => setTab("home")}
-                className={`w-14 h-14 -mt-5 rounded-2xl flex items-center justify-center shadow-xl transition-all active:scale-95 border-4 fab-pulse animate-scale-in ${
-                  tab === "home"
-                    ? "bg-teal-500 text-white shadow-teal-500/40"
-                    : isDark
-                      ? "bg-slate-800 text-teal-400 shadow-slate-900/60 border-slate-950"
-                      : "bg-teal-500 text-white shadow-teal-500/30"
-                }`}
-                style={{ borderColor: isDark ? "rgb(2 6 23)" : "rgb(255 255 255)" }}
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-all ${tab === t.id ? "text-teal-400" : isDark ? "text-slate-700 hover:text-slate-500" : "text-slate-500 hover:text-slate-700"}`}
               >
-                <Icon name="store" size={22} />
+                <Icon name={t.icon} size={18} />
+                <span className="text-[8px] font-black uppercase tracking-wider leading-none">{t.label}</span>
+                {tab === t.id && <div className="w-1 h-1 rounded-full bg-teal-400 mt-0.5" />}
               </button>
-              <span className={`text-[8px] font-black uppercase tracking-wider mt-1 ${tab === "home" ? "text-teal-400" : isDark ? "text-slate-600" : "text-slate-400"}`}>
-                Início
-              </span>
-            </div>
-
-            {/* Armazém */}
-            <NavTab id="warehouse" label="Armazém" icon="warehouse" active={tab === "warehouse"} isDark={isDark} onClick={() => setTab("warehouse")} />
-
-            {/* Mais */}
+            ))}
             <button
               onClick={() => setDrawer(true)}
               className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-all ${isExtra ? "text-teal-400" : isDark ? "text-slate-700 hover:text-slate-500" : "text-slate-500 hover:text-slate-700"}`}
@@ -276,7 +219,6 @@ export default function App() {
               <span className="text-[8px] font-black uppercase tracking-wider leading-none">Mais</span>
               {isExtra && <div className="w-1 h-1 rounded-full bg-teal-400 mt-0.5" />}
             </button>
-
           </div>
         </div>
 
@@ -291,23 +233,5 @@ export default function App() {
         />
       </div>
     </ThemeCtx.Provider>
-  );
-}
-
-// ── NavTab helper ──────────────────────────────────────────────────────────────
-function NavTab({ id, label, icon, active, isDark, onClick }: {
-  id: string; label: string; icon: string;
-  active: boolean; isDark: boolean; onClick: () => void;
-}) {
-  return (
-    <button
-      key={id}
-      onClick={onClick}
-      className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-all ${active ? "text-teal-400" : isDark ? "text-slate-700 hover:text-slate-500" : "text-slate-500 hover:text-slate-700"}`}
-    >
-      <Icon name={icon} size={18} />
-      <span className="text-[8px] font-black uppercase tracking-wider leading-none">{label}</span>
-      {active && <div className="w-1 h-1 rounded-full bg-teal-400 mt-0.5" />}
-    </button>
   );
 }

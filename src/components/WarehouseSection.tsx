@@ -14,9 +14,10 @@ interface WarehouseSectionProps {
   categories: string[];
   shoppingList: ShoppingListEntry[];
   setShoppingList: (l: ShoppingListEntry[]) => void;
+  onGoToNewPurchase?: () => void;
 }
 
-export function WarehouseSection({ items, purchases, warehouse, setWarehouse, categories, shoppingList, setShoppingList }: WarehouseSectionProps) {
+export function WarehouseSection({ items, purchases, warehouse, setWarehouse, categories, shoppingList, setShoppingList, onGoToNewPurchase }: WarehouseSectionProps) {
   const { isDark } = useTheme();
   const [view, setView] = useState<"current" | "alerts">("current");
   const [search, setSearch] = useState("");
@@ -288,7 +289,25 @@ export function WarehouseSection({ items, purchases, warehouse, setWarehouse, ca
       )}
 
       {view === "current" && (warehouseItems.length === 0 ? (
-        <Empty icon="warehouse" title="Armazém vazio" sub="Registre compras para começar a rastrear o estoque dos produtos." />
+        <div className="flex flex-col items-center text-center py-12 gap-4 px-4">
+          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${isDark ? "bg-slate-800" : "bg-slate-100"}`}>
+            <Icon name="warehouse" size={24} />
+          </div>
+          <div className="space-y-1">
+            <p className={`font-black text-sm ${isDark ? "text-slate-200" : "text-slate-800"}`}>Armazém vazio</p>
+            <p className={`text-xs ${isDark ? "text-slate-500" : "text-slate-400"}`}>
+              O estoque é atualizado automaticamente quando você registra compras. Registre sua primeira compra para começar.
+            </p>
+          </div>
+          {onGoToNewPurchase && (
+            <button
+              onClick={onGoToNewPurchase}
+              className="px-5 py-2.5 rounded-xl bg-teal-500 text-white text-xs font-black shadow-lg shadow-teal-500/25 active:scale-95 transition-transform"
+            >
+              Registrar compra
+            </button>
+          )}
+        </div>
       ) : (
         Object.entries(grouped).map(([cat, catItems]) => (
           <div key={cat}>

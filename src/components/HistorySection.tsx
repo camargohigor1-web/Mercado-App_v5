@@ -11,9 +11,11 @@ interface HistorySectionProps {
   markets: Market[];
   purchases: Purchase[];
   warehouse: WarehouseItem[];
+  onGoToNewPurchase?: () => void;
+  onRepeatPurchase?: (purchase: Purchase) => void;
 }
 
-export function HistorySection({ items, markets, purchases, warehouse }: HistorySectionProps) {
+export function HistorySection({ items, markets, purchases, warehouse, onGoToNewPurchase, onRepeatPurchase }: HistorySectionProps) {
   const { isDark } = useTheme();
   const [subTab, setSubTab] = useState<"products" | "purchases">("products");
   const [search, setSearch] = useState("");
@@ -181,7 +183,7 @@ export function HistorySection({ items, markets, purchases, warehouse }: History
   if (selectedPurchase) {
     const p = selectedPurchase;
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 animate-slide-in-right">
         <div className="flex items-center gap-3">
           <button onClick={closeSelectedPurchase} className={`${isDark ? "text-slate-500 hover:text-slate-200" : "text-slate-400 hover:text-slate-700"} p-1`}><Icon name="back" size={20} /></button>
           <div className="flex-1">
@@ -222,10 +224,21 @@ export function HistorySection({ items, markets, purchases, warehouse }: History
             );
           })}
         </div>
-        <Card className="flex justify-between items-center">
-          <span className="text-slate-500 text-sm">{p.lines.length} {p.lines.length === 1 ? "item" : "itens"}</span>
-          <span className="text-teal-400 font-black text-lg">{fmt(p.total)}</span>
-        </Card>
+        <div className="space-y-2">
+          <Card className="flex justify-between items-center">
+            <span className="text-slate-500 text-sm">{p.lines.length} {p.lines.length === 1 ? "item" : "itens"}</span>
+            <span className="text-teal-400 font-black text-lg">{fmt(p.total)}</span>
+          </Card>
+          {onRepeatPurchase && (
+            <button
+              onClick={() => onRepeatPurchase(p)}
+              className={`w-full py-3 rounded-xl text-sm font-black flex items-center justify-center gap-2 transition-all active:scale-95 ${isDark ? "bg-teal-500/15 text-teal-400 border border-teal-500/30 hover:bg-teal-500/25" : "bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100"}`}
+            >
+              <Icon name="copy" size={15} />
+              Repetir esta compra
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -281,7 +294,23 @@ export function HistorySection({ items, markets, purchases, warehouse }: History
 
       {subTab === "products" && (
         purchases.length === 0 ? (
-          <Empty icon="history" title="Nenhum dado ainda" sub="Registre compras para ver histórico de consumo e evolução de preços." />
+          <div className="flex flex-col items-center text-center py-12 gap-4 px-4">
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${isDark ? "bg-slate-800" : "bg-slate-100"}`}>
+              <Icon name="history" size={24} />
+            </div>
+            <div className="space-y-1">
+              <p className={`font-black text-sm ${isDark ? "text-slate-200" : "text-slate-800"}`}>Nenhuma compra ainda</p>
+              <p className={`text-xs ${isDark ? "text-slate-500" : "text-slate-400"}`}>Registre suas compras para ver o histórico de consumo e evolução de preços por produto.</p>
+            </div>
+            {onGoToNewPurchase && (
+              <button
+                onClick={onGoToNewPurchase}
+                className="px-5 py-2.5 rounded-xl bg-teal-500 text-white text-xs font-black shadow-lg shadow-teal-500/25 active:scale-95 transition-transform"
+              >
+                Registrar primeira compra
+              </button>
+            )}
+          </div>
         ) : withStats.length === 0 ? (
           <Empty icon="history" title="Nenhum resultado" />
         ) : (
@@ -317,7 +346,23 @@ export function HistorySection({ items, markets, purchases, warehouse }: History
 
       {subTab === "purchases" && (
         sortedPurchases.length === 0 ? (
-          <Empty icon="cart" title="Nenhuma compra registrada" sub="Registre suas compras para ver o histórico aqui." />
+          <div className="flex flex-col items-center text-center py-12 gap-4 px-4">
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${isDark ? "bg-slate-800" : "bg-slate-100"}`}>
+              <Icon name="cart" size={24} />
+            </div>
+            <div className="space-y-1">
+              <p className={`font-black text-sm ${isDark ? "text-slate-200" : "text-slate-800"}`}>Nenhuma compra registrada</p>
+              <p className={`text-xs ${isDark ? "text-slate-500" : "text-slate-400"}`}>Suas compras vão aparecer aqui com data, mercado e valor total.</p>
+            </div>
+            {onGoToNewPurchase && (
+              <button
+                onClick={onGoToNewPurchase}
+                className="px-5 py-2.5 rounded-xl bg-teal-500 text-white text-xs font-black shadow-lg shadow-teal-500/25 active:scale-95 transition-transform"
+              >
+                Registrar primeira compra
+              </button>
+            )}
+          </div>
         ) : filteredPurchases.length === 0 ? (
           <Empty icon="cart" title="Nenhum resultado" />
         ) : (
@@ -327,17 +372,31 @@ export function HistorySection({ items, markets, purchases, warehouse }: History
                 <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-2 px-1">{dateKey}</p>
                 <div className="space-y-2">
                   {dayPurchases.map(p => (
-                    <Card key={p.id} onClick={() => setSelectedPurchase(p)} className={isDark ? "hover:border-slate-600" : "hover:border-slate-300"}>
-                      <div className="flex items-center justify-between">
-                        <div>
+                    <Card key={p.id} className={isDark ? "hover:border-slate-600" : "hover:border-slate-300"}>
+                      <div
+                        className="flex items-center justify-between cursor-pointer"
+                        onClick={() => setSelectedPurchase(p)}
+                      >
+                        <div className="flex-1 min-w-0">
                           <p className={`${isDark ? "text-slate-100" : "text-slate-900"} font-bold text-sm`}>{getMkt(p.marketId)}</p>
                           <p className="text-slate-500 text-xs mt-0.5">{p.lines.length} {p.lines.length === 1 ? "item" : "itens"}</p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
                           <p className="text-teal-400 font-black">{fmt(p.total)}</p>
                           <span className="text-slate-600"><Icon name="chevron" size={16} /></span>
                         </div>
                       </div>
+                      {onRepeatPurchase && (
+                        <div className={`mt-2.5 pt-2.5 border-t ${isDark ? "border-slate-800" : "border-slate-100"}`}>
+                          <button
+                            onClick={e => { e.stopPropagation(); onRepeatPurchase(p); }}
+                            className={`w-full py-1.5 rounded-lg text-xs font-black flex items-center justify-center gap-1.5 transition-all active:scale-95 ${isDark ? "text-teal-400 hover:bg-teal-500/10" : "text-teal-600 hover:bg-teal-50"}`}
+                          >
+                            <Icon name="copy" size={12} />
+                            Repetir esta compra
+                          </button>
+                        </div>
+                      )}
                     </Card>
                   ))}
                 </div>

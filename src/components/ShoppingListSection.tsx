@@ -13,10 +13,11 @@ interface ShoppingListSectionProps {
   shoppingList: ShoppingListEntry[];
   setShoppingList: (l: ShoppingListEntry[]) => void;
   onConvertToPurchase: (lines: PurchaseLine[]) => void;
+  onGoToItems?: () => void;
 }
 
 export function ShoppingListSection({
-  items, markets, purchases, warehouse, shoppingList, setShoppingList, onConvertToPurchase,
+  items, markets, purchases, warehouse, shoppingList, setShoppingList, onConvertToPurchase, onGoToItems,
 }: ShoppingListSectionProps) {
   const { isDark } = useTheme();
   const [listMode, setListMode] = useState<"plan" | "market">("plan");
@@ -382,7 +383,30 @@ export function ShoppingListSection({
         <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-2">Adicionar à lista</p>
         <Inp value={search} onChange={setSearch} placeholder="Buscar produto..." />
         {filtAvail.length === 0 ? (
-          <p className="text-slate-700 text-xs text-center py-5">{search ? "Nenhum resultado" : items.length === inList.size ? "Todos os itens já estão na lista" : "Nenhum item cadastrado"}</p>
+          items.length === 0 ? (
+            <div className="flex flex-col items-center text-center py-8 gap-3 px-4">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${isDark ? "bg-slate-800" : "bg-slate-100"}`}>
+                <Icon name="package" size={20} />
+              </div>
+              <div className="space-y-1">
+                <p className={`font-black text-sm ${isDark ? "text-slate-200" : "text-slate-800"}`}>Nenhum produto cadastrado</p>
+                <p className={`text-xs ${isDark ? "text-slate-500" : "text-slate-400"}`}>Cadastre produtos para montar sua lista de compras.</p>
+              </div>
+              {onGoToItems && (
+                <button
+                  onClick={onGoToItems}
+                  className="px-4 py-2 rounded-xl bg-teal-500 text-white text-xs font-black shadow-md shadow-teal-500/25 active:scale-95 transition-transform flex items-center gap-1.5"
+                >
+                  <Icon name="plus" size={13} />
+                  Cadastrar produtos
+                </button>
+              )}
+            </div>
+          ) : items.length === inList.size ? (
+            <p className={`text-xs text-center py-5 ${isDark ? "text-slate-600" : "text-slate-400"}`}>Todos os produtos já estão na lista</p>
+          ) : (
+            <p className={`text-xs text-center py-5 ${isDark ? "text-slate-600" : "text-slate-400"}`}>Nenhum resultado</p>
+          )
         ) : (
           <div className="space-y-2 mt-2">
             {filtAvail.map(({ item, stats }) => {

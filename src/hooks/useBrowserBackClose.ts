@@ -14,20 +14,42 @@ export function useBrowserBackClose(active: boolean, onClose: () => void) {
     if (!active || typeof window === "undefined") return;
 
     const id = idRef.current;
-    backStack.push(id);
-    window.history.pushState({ ...(window.history.state || {}), mercadoBackCloseId: id }, "", window.location.href);
 
-    function handlePopState() {
-      if (backStack[backStack.length - 1] === id) {
-        onCloseRef.current();
-      }
-    }
+    // Delay by two frames so any in-progress popstate from a previous
+    // navigation (e.g. tab switch remount) has time to settle before
+    // we push a new history entry and attach our listener.
+    let raf1: number;
+    let raf2: number;
+    let cleanup: (() => void) | null = null;
 
-    window.addEventListener("popstate", handlePopState);
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        backStack.push(id);
+        window.history.pushState(
+          { ...(window.history.state || {}), mercadoBackCloseId: id },
+          "",
+          window.location.href
+        );
+
+        function handlePopState() {
+          if (backStack[backStack.length - 1] === id) {
+            onCloseRef.current();
+          }
+        }
+
+        window.addEventListener("popstate", handlePopState);
+        cleanup = () => {
+          window.removeEventListener("popstate", handlePopState);
+          const idx = backStack.lastIndexOf(id);
+          if (idx >= 0) backStack.splice(idx, 1);
+        };
+      });
+    });
+
     return () => {
-      window.removeEventListener("popstate", handlePopState);
-      const idx = backStack.lastIndexOf(id);
-      if (idx >= 0) backStack.splice(idx, 1);
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+      cleanup?.();
     };
   }, [active]);
 
@@ -40,7 +62,6 @@ export function useBrowserBackClose(active: boolean, onClose: () => void) {
       window.history.back();
       return;
     }
-
     onCloseRef.current();
   }, [active]);
 }
