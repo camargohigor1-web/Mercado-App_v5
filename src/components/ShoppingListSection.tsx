@@ -574,7 +574,7 @@ export function ShoppingListSection({
               )}
               {compareOptions.length === 0 && (
                 <div className={`${isDark ? "bg-slate-900/50 border-slate-800" : "bg-slate-50 border-slate-200"} border rounded-xl px-4 py-5 text-center`}>
-                  <p className="text-xs font-semibold text-slate-500">Nenhuma opÃ§Ã£o adicionada</p>
+                  <p className="text-xs font-semibold text-slate-500">Nenhuma opção adicionada</p>
                   <p className="text-[10px] text-slate-600 mt-1">Digite abaixo os preÃ§os e quantidades encontrados no mercado.</p>
                 </div>
               )}

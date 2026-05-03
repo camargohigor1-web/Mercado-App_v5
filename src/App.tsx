@@ -59,6 +59,7 @@ export default function App() {
   // ── Convert shopping list → new purchase ───────────────────────────────────
   const [pendingLines, setPendingLines] = useState<PurchaseLine[] | null>(null);
   const [pendingKey, setPendingKey] = useState(0);
+  const [reportsMonth, setReportsMonth] = useState<string | undefined>(undefined);
 
   function handleConvertToPurchase(lines: PurchaseLine[]) {
     setPendingLines(lines);
@@ -82,6 +83,11 @@ export default function App() {
     setPendingLines(null);
     setPendingKey(Date.now());
     setTab("purchases");
+  }
+
+  function handleGoToReports(month: string) {
+    setReportsMonth(month);
+    setTab("reports");
   }
 
   // ── Restore from backup ────────────────────────────────────────────────────
@@ -149,6 +155,7 @@ export default function App() {
               onGoToWarehouse={() => setTab("warehouse")}
               onGoToItems={() => setTab("items")}
               onRepeatPurchase={handleRepeatPurchase}
+              onGoToReports={handleGoToReports}
             />
           )}
           {tab === "shopping" && (
@@ -218,6 +225,7 @@ export default function App() {
               markets={markets}
               purchases={purchases}
               warehouse={warehouse}
+              initialMonth={reportsMonth}
             />
           )}
           {tab === "backup" && (

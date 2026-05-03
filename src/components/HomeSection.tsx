@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useTheme } from "../hooks/useTheme";
 import { Icon } from "./Icon";
 import { Badge } from "./ui";
@@ -15,6 +16,7 @@ interface HomeSectionProps {
   onGoToWarehouse: () => void;
   onGoToItems: () => void;
   onRepeatPurchase: (purchase: Purchase) => void;
+  onGoToReports: (month: string) => void;
 }
 
 function cap(str: string) { return str.charAt(0).toUpperCase() + str.slice(1); }
@@ -30,21 +32,38 @@ function getWeekday() {
   return new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" });
 }
 
-function getMonthLabel() {
-  return new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+function monthLabel(key: string) {
+  const [y, m] = key.split("-");
+  return new Date(+y, +m - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 }
 
-// ── Gasto por categoria ────────────────────────────────────────────────────────
+function shortMonthLabel(key: string) {
+  const [y, m] = key.split("-");
+  return cap(new Date(+y, +m - 1, 1).toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""));
+}
+
+// Build last N months array
+function buildMonths(n: number) {
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - (n - 1 - i));
+    return d.toISOString().slice(0, 7);
+  });
+}
+
 const CHART_COLORS = [
-  { bar: "#14b8a6", dim: "rgba(20,184,166,0.12)", text: "#2dd4bf" },
-  { bar: "#3b82f6", dim: "rgba(59,130,246,0.12)", text: "#60a5fa" },
-  { bar: "#8b5cf6", dim: "rgba(139,92,246,0.12)", text: "#a78bfa" },
-  { bar: "#f59e0b", dim: "rgba(245,158,11,0.12)", text: "#fbbf24" },
-  { bar: "#f43f5e", dim: "rgba(244,63,94,0.12)",  text: "#fb7185" },
+  { bar: "#14b8a6", text: "#2dd4bf" },
+  { bar: "#3b82f6", text: "#60a5fa" },
+  { bar: "#8b5cf6", text: "#a78bfa" },
+  { bar: "#f59e0b", text: "#fbbf24" },
+  { bar: "#f43f5e", text: "#fb7185" },
 ];
 
-function CategoryChart({ purchases, items, isDark }: { purchases: Purchase[]; items: Item[]; isDark: boolean }) {
-  const month = new Date().toISOString().slice(0, 7);
+// ── Gasto por categoria ────────────────────────────────────────────────────────
+function CategoryChart({ purchases, items, month, isDark }: {
+  purchases: Purchase[]; items: Item[]; month: string; isDark: boolean;
+}) {
   const byCategory: Record<string, number> = {};
   purchases.filter(p => p.date.startsWith(month)).forEach(p =>
     p.lines.forEach(l => {
@@ -57,7 +76,7 @@ function CategoryChart({ purchases, items, isDark }: { purchases: Purchase[]; it
 
   if (entries.length === 0) return (
     <p className={`text-xs text-center py-4 ${isDark ? "text-slate-600" : "text-slate-400"}`}>
-      Sem compras este mês
+      Sem compras neste mês
     </p>
   );
 
@@ -76,10 +95,7 @@ function CategoryChart({ purchases, items, isDark }: { purchases: Purchase[]; it
               <span className="text-xs font-black" style={{ color: c.text }}>{fmt(value)}</span>
             </div>
             <div className={`w-full h-2 rounded-full ${isDark ? "bg-slate-800" : "bg-slate-100"}`}>
-              <div
-                className="h-2 rounded-full transition-all duration-700"
-                style={{ width: `${pct}%`, background: c.bar }}
-              />
+              <div className="h-2 rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: c.bar }} />
             </div>
           </div>
         );
@@ -88,21 +104,21 @@ function CategoryChart({ purchases, items, isDark }: { purchases: Purchase[]; it
   );
 }
 
-// ── Gastos mensais (6 meses) ───────────────────────────────────────────────────
-function MonthlyChart({ purchases, isDark }: { purchases: Purchase[]; isDark: boolean }) {
-  const months = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date();
-    d.setDate(1);
-    d.setMonth(d.getMonth() - (5 - i));
-    const key = d.toISOString().slice(0, 7);
-    const label = cap(d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""));
-    const total = purchases.filter(p => p.date.startsWith(key)).reduce((s, p) => s + p.total, 0);
-    return { key, label, total };
-  });
-
-  const currentKey = new Date().toISOString().slice(0, 7);
-  const max = Math.max(...months.map(m => m.total), 1);
-  const hasData = months.some(m => m.total > 0);
+// ── Gastos mensais clicáveis ───────────────────────────────────────────────────
+function MonthlyChart({ purchases, selectedMonth, onSelectMonth, isDark }: {
+  purchases: Purchase[];
+  selectedMonth: string;
+  onSelectMonth: (m: string) => void;
+  isDark: boolean;
+}) {
+  const months = buildMonths(6);
+  const totals = months.map(key => ({
+    key,
+    label: shortMonthLabel(key),
+    total: purchases.filter(p => p.date.startsWith(key)).reduce((s, p) => s + p.total, 0),
+  }));
+  const max = Math.max(...totals.map(m => m.total), 1);
+  const hasData = totals.some(m => m.total > 0);
 
   if (!hasData) return (
     <p className={`text-xs text-center py-4 ${isDark ? "text-slate-600" : "text-slate-400"}`}>
@@ -110,58 +126,82 @@ function MonthlyChart({ purchases, isDark }: { purchases: Purchase[]; isDark: bo
     </p>
   );
 
+  const currentKey = new Date().toISOString().slice(0, 7);
+
+  // compare vs previous month
+  const selIdx = months.indexOf(selectedMonth);
+  const selTotal = totals[selIdx]?.total ?? 0;
+  const prevTotal = selIdx > 0 ? totals[selIdx - 1]?.total ?? 0 : 0;
+  const diff = prevTotal > 0 ? ((selTotal - prevTotal) / prevTotal) * 100 : null;
+
   return (
     <div>
       <div className="flex items-end gap-1.5" style={{ height: "72px" }}>
-        {months.map(m => {
+        {totals.map(m => {
+          const isSelected = m.key === selectedMonth;
           const isCurrent = m.key === currentKey;
-          const h = m.total > 0 ? Math.max((m.total / max) * 64, 6) : 2;
+          const h = m.total > 0 ? Math.max((m.total / max) * 64, 6) : 3;
           return (
-            <div key={m.key} className="flex-1 flex flex-col items-center justify-end gap-0" style={{ height: "72px" }}>
+            <button
+              key={m.key}
+              onClick={() => onSelectMonth(m.key)}
+              className="flex-1 flex flex-col items-center justify-end focus:outline-none group"
+              style={{ height: "72px" }}
+            >
               <div
-                className="w-full rounded-t-lg transition-all duration-700"
+                className="w-full rounded-t-lg transition-all duration-300 group-active:scale-95"
                 style={{
                   height: `${h}px`,
-                  background: isCurrent ? "#14b8a6" : isDark ? "#1e293b" : "#e2e8f0",
-                  boxShadow: isCurrent ? "0 0 12px rgba(20,184,166,0.3)" : "none",
+                  background: isSelected
+                    ? "#14b8a6"
+                    : isCurrent
+                      ? "rgba(20,184,166,0.35)"
+                      : isDark ? "#1e293b" : "#e2e8f0",
+                  boxShadow: isSelected ? "0 0 14px rgba(20,184,166,0.4)" : "none",
+                  transform: isSelected ? "scaleY(1.04)" : "scaleY(1)",
+                  transformOrigin: "bottom",
                 }}
               />
-            </div>
+            </button>
           );
         })}
       </div>
-      <div className="flex gap-1.5 mt-2">
-        {months.map(m => (
-          <div key={m.key} className="flex-1 text-center">
+      <div className="flex gap-1.5 mt-1.5">
+        {totals.map(m => (
+          <button
+            key={m.key}
+            onClick={() => onSelectMonth(m.key)}
+            className="flex-1 text-center focus:outline-none"
+          >
             <span
-              className="text-[9px] font-bold"
-              style={{ color: m.key === currentKey ? "#2dd4bf" : isDark ? "#475569" : "#94a3b8" }}
+              className="text-[9px] font-black"
+              style={{ color: m.key === selectedMonth ? "#2dd4bf" : isDark ? "#475569" : "#94a3b8" }}
             >
               {m.label}
             </span>
-          </div>
+          </button>
         ))}
       </div>
-      {/* Valor do mês atual abaixo do gráfico */}
-      {(() => {
-        const cur = months.find(m => m.key === currentKey);
-        const prev = months.find(m => m.key === new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().slice(0, 7));
-        if (!cur || cur.total === 0) return null;
-        const diff = prev && prev.total > 0 ? ((cur.total - prev.total) / prev.total) * 100 : null;
-        return (
-          <div className={`flex items-center justify-between mt-3 pt-3 border-t ${isDark ? "border-slate-800" : "border-slate-100"}`}>
-            <span className={`text-xs ${isDark ? "text-slate-500" : "text-slate-400"}`}>Mês atual</span>
-            <div className="flex items-center gap-2">
-              {diff !== null && (
-                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${diff > 0 ? (isDark ? "bg-red-500/15 text-red-400" : "bg-red-50 text-red-500") : (isDark ? "bg-teal-500/15 text-teal-400" : "bg-teal-50 text-teal-600")}`}>
-                  {diff > 0 ? "+" : ""}{diff.toFixed(0)}%
-                </span>
-              )}
-              <span className="text-sm font-black text-teal-400">{fmt(cur.total)}</span>
-            </div>
-          </div>
-        );
-      })()}
+      {/* Comparativo */}
+      <div className={`flex items-center justify-between mt-3 pt-3 border-t ${isDark ? "border-slate-800" : "border-slate-100"}`}>
+        <span className={`text-xs ${isDark ? "text-slate-500" : "text-slate-400"}`}>
+          {cap(monthLabel(selectedMonth))}
+        </span>
+        <div className="flex items-center gap-2">
+          {diff !== null && selTotal > 0 && (
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+              diff > 0
+                ? isDark ? "bg-red-500/15 text-red-400" : "bg-red-50 text-red-500"
+                : isDark ? "bg-teal-500/15 text-teal-400" : "bg-teal-50 text-teal-600"
+            }`}>
+              {diff > 0 ? "+" : ""}{diff.toFixed(0)}%
+            </span>
+          )}
+          <span className={`text-sm font-black ${selTotal > 0 ? "text-teal-400" : isDark ? "text-slate-600" : "text-slate-300"}`}>
+            {selTotal > 0 ? fmt(selTotal) : "Sem compras"}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -198,24 +238,30 @@ function Greeting({ isDark }: { isDark: boolean }) {
 // ── HomeSection principal ──────────────────────────────────────────────────────
 export function HomeSection({
   items, markets, purchases, warehouse,
-  onGoToNewPurchase, onGoToHistory, onGoToWarehouse, onGoToItems, onRepeatPurchase,
+  onGoToNewPurchase, onGoToHistory, onGoToWarehouse, onGoToItems,
+  onRepeatPurchase, onGoToReports,
 }: HomeSectionProps) {
   const { isDark } = useTheme();
-
-  const sorted      = [...purchases].sort((a, b) => b.date.localeCompare(a.date));
-  const lastPurchase = sorted[0] ?? null;
   const currentMonth = new Date().toISOString().slice(0, 7);
-  const monthPurchases = purchases.filter(p => p.date.startsWith(currentMonth));
-  const monthTotal   = monthPurchases.reduce((s, p) => s + p.total, 0);
-  const low          = getLowStockItems(items, purchases, warehouse);
-  const critical     = low.filter(l => l.daysLeft <= 7);
-  const warning      = low.filter(l => l.daysLeft > 7 && l.daysLeft <= 15);
-  const getMkt       = (id: string) => markets.find(m => m.id === id)?.name ?? "Mercado";
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
 
-  const card    = `rounded-2xl border ${isDark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"} p-4`;
-  const lbl     = `text-[10px] font-black uppercase tracking-widest ${isDark ? "text-slate-500" : "text-slate-400"}`;
-  const ttl     = `font-black ${isDark ? "text-slate-100" : "text-slate-900"}`;
-  const s       = `text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`;
+  const sorted       = [...purchases].sort((a, b) => b.date.localeCompare(a.date));
+  const lastPurchase = sorted[0] ?? null;
+
+  // Stats for selected month
+  const monthPurchases = purchases.filter(p => p.date.startsWith(selectedMonth));
+  const monthTotal     = monthPurchases.reduce((s, p) => s + p.total, 0);
+  const isCurrentMonth = selectedMonth === currentMonth;
+
+  const low      = getLowStockItems(items, purchases, warehouse);
+  const critical = low.filter(l => l.daysLeft <= 7);
+  const warning  = low.filter(l => l.daysLeft > 7 && l.daysLeft <= 15);
+  const getMkt   = (id: string) => markets.find(m => m.id === id)?.name ?? "Mercado";
+
+  const card  = `rounded-2xl border ${isDark ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"} p-4`;
+  const lbl   = `text-[10px] font-black uppercase tracking-widest ${isDark ? "text-slate-500" : "text-slate-400"}`;
+  const ttl   = `font-black ${isDark ? "text-slate-100" : "text-slate-900"}`;
+  const sub   = `text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`;
 
   // ── Empty ──────────────────────────────────────────────────────────────────
   if (purchases.length === 0 && items.length === 0) return (
@@ -225,12 +271,11 @@ export function HomeSection({
       </div>
       <div className="space-y-1.5">
         <p className={`text-xl font-black ${ttl}`}>Bem-vindo ao MercadoApp</p>
-        <p className={s}>Registre compras e acompanhe seus gastos.</p>
+        <p className={sub}>Registre compras e acompanhe seus gastos.</p>
       </div>
       <div className="space-y-3 w-full max-w-xs">
         <button onClick={onGoToNewPurchase} className="w-full py-4 rounded-2xl bg-teal-500 text-white font-black text-sm shadow-lg shadow-teal-500/25 active:scale-95 transition-transform flex items-center justify-center gap-2">
-          <Icon name="plus" size={16} />
-          Registrar primeira compra
+          <Icon name="plus" size={16} />Registrar primeira compra
         </button>
         <button onClick={onGoToItems} className={`w-full py-3 rounded-2xl text-sm font-bold border transition-colors ${isDark ? "border-slate-700 text-slate-400" : "border-slate-200 text-slate-500"}`}>
           Cadastrar produtos antes
@@ -239,7 +284,7 @@ export function HomeSection({
     </div>
   );
 
-  // ── Tem produtos, sem compras ──────────────────────────────────────────────
+  // ── Sem compras ainda ──────────────────────────────────────────────────────
   if (purchases.length === 0) return (
     <div className="space-y-5 animate-fade-slide-up">
       <Greeting isDark={isDark} />
@@ -267,21 +312,59 @@ export function HomeSection({
         <NewPurchaseBtn onClick={onGoToNewPurchase} />
       </div>
 
-      {/* Resumo do mês */}
+      {/* Gráfico — Gastos mensais (clicável) */}
       <div className="animate-fade-slide-up stagger-1">
-        <p className={`${lbl} mb-2.5`}>{cap(getMonthLabel())}</p>
+        <p className={`${lbl} mb-2.5`}>Gastos — últimos 6 meses</p>
+        <div className={card}>
+          <MonthlyChart
+            purchases={purchases}
+            selectedMonth={selectedMonth}
+            onSelectMonth={setSelectedMonth}
+            isDark={isDark}
+          />
+        </div>
+      </div>
+
+      {/* Resumo do mês selecionado */}
+      <div className="animate-fade-slide-up stagger-2">
+        <div className="flex items-center justify-between mb-2.5">
+          <p className={lbl}>{cap(monthLabel(selectedMonth))}</p>
+          {!isCurrentMonth && (
+            <button
+              onClick={() => setSelectedMonth(currentMonth)}
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-lg transition-colors ${isDark ? "text-teal-400 hover:bg-teal-500/10" : "text-teal-600 hover:bg-teal-50"}`}
+            >
+              Voltar ao atual
+            </button>
+          )}
+        </div>
         <div className="grid grid-cols-2 gap-3">
-          <div className={card}>
+          {/* Card gasto — clicável para relatório */}
+          <button
+            onClick={() => monthTotal > 0 && onGoToReports(selectedMonth)}
+            disabled={monthTotal === 0}
+            className={`${card} text-left transition-all active:scale-95 ${monthTotal > 0 ? "cursor-pointer hover:border-teal-500/40" : "cursor-default"}`}
+          >
             <p className={lbl}>Gasto no mês</p>
             <p className={`text-2xl font-black mt-1.5 ${monthTotal > 0 ? "text-teal-400" : isDark ? "text-slate-700" : "text-slate-300"}`}>
               {monthTotal > 0 ? fmt(monthTotal) : "R$ —"}
             </p>
-          </div>
+            {monthTotal > 0 && (
+              <p className={`text-[10px] mt-1 flex items-center gap-1 ${isDark ? "text-slate-600" : "text-slate-400"}`}>
+                Ver relatório <Icon name="chevron" size={9} />
+              </p>
+            )}
+          </button>
           <div className={card}>
             <p className={lbl}>Compras</p>
             <p className={`text-2xl font-black mt-1.5 ${monthPurchases.length > 0 ? (isDark ? "text-slate-100" : "text-slate-800") : isDark ? "text-slate-700" : "text-slate-300"}`}>
               {monthPurchases.length > 0 ? monthPurchases.length : "—"}
             </p>
+            {monthPurchases.length === 0 && (
+              <p className={`text-[10px] mt-1 ${isDark ? "text-slate-600" : "text-slate-400"}`}>
+                {isCurrentMonth ? "nenhuma ainda" : "sem registros"}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -332,21 +415,13 @@ export function HomeSection({
         </div>
       )}
 
-      {/* Gráfico — Gasto por categoria */}
-      <div className="animate-fade-slide-up stagger-2">
+      {/* Gráfico — Gasto por categoria do mês selecionado */}
+      <div className="animate-fade-slide-up stagger-3">
         <p className={`${lbl} mb-2.5`}>
-          Gasto por categoria — {cap(new Date().toLocaleDateString("pt-BR", { month: "long" }))}
+          Por categoria — {cap(monthLabel(selectedMonth))}
         </p>
         <div className={card}>
-          <CategoryChart purchases={purchases} items={items} isDark={isDark} />
-        </div>
-      </div>
-
-      {/* Gráfico — Gastos mensais */}
-      <div className="animate-fade-slide-up stagger-3">
-        <p className={`${lbl} mb-2.5`}>Gastos — últimos 6 meses</p>
-        <div className={card}>
-          <MonthlyChart purchases={purchases} isDark={isDark} />
+          <CategoryChart purchases={purchases} items={items} month={selectedMonth} isDark={isDark} />
         </div>
       </div>
 
@@ -362,7 +437,7 @@ export function HomeSection({
                 </div>
                 <div className="min-w-0">
                   <p className={`text-sm font-black truncate ${ttl}`}>{getMkt(lastPurchase.marketId)}</p>
-                  <p className={`text-[11px] mt-0.5 ${s}`}>
+                  <p className={`text-[11px] mt-0.5 ${sub}`}>
                     {new Date(lastPurchase.date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
                     {" · "}{lastPurchase.lines.length} {lastPurchase.lines.length === 1 ? "item" : "itens"}
                   </p>

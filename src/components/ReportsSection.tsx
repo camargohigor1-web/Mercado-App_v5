@@ -10,12 +10,13 @@ interface ReportsSectionProps {
   markets: Market[];
   purchases: Purchase[];
   warehouse: WarehouseItem[];
+  initialMonth?: string; // "YYYY-MM" — pré-filtra ao abrir
 }
 
-export function ReportsSection({ items, markets, purchases, warehouse }: ReportsSectionProps) {
+export function ReportsSection({ items, markets, purchases, warehouse, initialMonth }: ReportsSectionProps) {
   const { isDark } = useTheme();
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateFrom, setDateFrom] = useState(initialMonth ? `${initialMonth}-01` : "");
+  const [dateTo, setDateTo] = useState(initialMonth ? `${initialMonth}-31` : "");
 
   if (purchases.length === 0) {
     return <Empty icon="chart" title="Sem dados para relatório" sub="Registre algumas compras para visualizar os relatórios e gráficos do seu histórico." />;
