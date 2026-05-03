@@ -13,15 +13,17 @@ interface HistorySectionProps {
   warehouse: WarehouseItem[];
   onGoToNewPurchase?: () => void;
   onRepeatPurchase?: (purchase: Purchase) => void;
+  initialPurchaseId?: string;
 }
 
-export function HistorySection({ items, markets, purchases, warehouse, onGoToNewPurchase, onRepeatPurchase }: HistorySectionProps) {
+export function HistorySection({ items, markets, purchases, warehouse, onGoToNewPurchase, onRepeatPurchase, initialPurchaseId }: HistorySectionProps) {
   const { isDark } = useTheme();
-  const [subTab, setSubTab] = useState<"products" | "purchases">("products");
+  const initialPurchase = initialPurchaseId ? purchases.find(p => p.id === initialPurchaseId) ?? null : null;
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("");
   const [selectedItem, setSelectedItem] = useState<{ item: Item; stats: ReturnType<typeof calcStats> } | null>(null);
-  const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
+  const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(initialPurchase);
+  const [subTab, setSubTab] = useState<"products" | "purchases">(initialPurchase ? "purchases" : "products");
   const closeSelectedItem = useBrowserBackClose(selectedItem !== null, () => setSelectedItem(null));
   const closeSelectedPurchase = useBrowserBackClose(selectedPurchase !== null, () => setSelectedPurchase(null));
 
@@ -66,7 +68,7 @@ export function HistorySection({ items, markets, purchases, warehouse, onGoToNew
     purchases.forEach(p => {
       p.lines.forEach(l => {
         if (l.itemId !== item.id) return;
-        allEntries.push({ ...l, date: p.date, market: getMkt(p.marketId) });
+        allEntries.push({ ...l, date: p.date, market: getMkt(p.marketId), purchaseId: p.id });
       });
     });
     allEntries.sort((a, b) => b.date.localeCompare(a.date));
@@ -145,7 +147,11 @@ export function HistorySection({ items, markets, purchases, warehouse, onGoToNew
           <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-2">{allEntries.length} registro(s) de compra</p>
           <div className="space-y-2">
             {allEntries.map((e, i) => (
-              <Card key={i}>
+              <Card
+                key={i}
+                onClick={() => onRepeatPurchase && setSelectedPurchase(purchases.find(p => p.id === e.purchaseId) ?? null)}
+                className={onRepeatPurchase ? "cursor-pointer hover:border-teal-500/40 active:scale-[0.98] transition-all" : ""}
+              >
                 <div className="flex justify-between items-start">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
@@ -169,7 +175,10 @@ export function HistorySection({ items, markets, purchases, warehouse, onGoToNew
                       </>
                     )}
                   </div>
-                  <p className="text-teal-400 font-black text-sm">{fmt(e.total)}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-teal-400 font-black text-sm">{fmt(e.total)}</p>
+                    {onRepeatPurchase && <Icon name="chevron" size={12} />}
+                  </div>
                 </div>
               </Card>
             ))}

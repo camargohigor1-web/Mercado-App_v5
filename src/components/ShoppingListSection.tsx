@@ -14,10 +14,11 @@ interface ShoppingListSectionProps {
   setShoppingList: (l: ShoppingListEntry[]) => void;
   onConvertToPurchase: (lines: PurchaseLine[]) => void;
   onGoToItems?: () => void;
+  onGoToHistoryPurchase?: (purchaseId: string) => void;
 }
 
 export function ShoppingListSection({
-  items, markets, purchases, warehouse, shoppingList, setShoppingList, onConvertToPurchase, onGoToItems,
+  items, markets, purchases, warehouse, shoppingList, setShoppingList, onConvertToPurchase, onGoToItems, onGoToHistoryPurchase,
 }: ShoppingListSectionProps) {
   const { isDark } = useTheme();
   const [listMode, setListMode] = useState<"plan" | "market">("plan");
@@ -444,7 +445,7 @@ export function ShoppingListSection({
           p.lines.forEach(l => {
             if (l.itemId !== item.id) return;
             const mkt = markets.find(m => m.id === p.marketId)?.name || "?";
-            allEntries.push({ ...l, date: p.date, market: mkt });
+            allEntries.push({ ...l, date: p.date, market: mkt, purchaseId: p.id });
           });
         });
         allEntries.sort((a, b) => b.date.localeCompare(a.date));
@@ -511,19 +512,26 @@ export function ShoppingListSection({
                       <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-2">Últimas compras</p>
                       <div className="space-y-2">
                         {recentEntries.map((e, i) => (
-                          <div key={i} className={`flex items-center justify-between px-3 py-2 ${isDark ? "bg-slate-900 border-slate-800" : "bg-slate-50 border-slate-200"} border rounded-xl`}>
+                          <div
+                            key={i}
+                            onClick={() => onGoToHistoryPurchase && onGoToHistoryPurchase(e.purchaseId)}
+                            className={`flex items-center justify-between px-3 py-2 ${isDark ? "bg-slate-900 border-slate-800" : "bg-slate-50 border-slate-200"} border rounded-xl ${onGoToHistoryPurchase ? "cursor-pointer active:scale-95 transition-transform hover:border-teal-500/40" : ""}`}
+                          >
                             <div>
                               <p className={`text-xs font-semibold ${isDark ? "text-slate-200" : "text-slate-800"}`}>{e.market}</p>
                               <p className="text-[10px] text-slate-500">{new Date(e.date + "T12:00:00").toLocaleDateString("pt-BR")}</p>
                             </div>
-                            <div className="text-right">
-                              <p className="text-xs font-bold text-teal-400">
-                                {item.type === "bulk"
-                                  ? `${fmt((e.pricePerUnit || 0) / factor)}/${du}`
-                                  : `${fmt(e.pricePerPkgAfterDiscount ?? e.pricePerPkg)}/emb`
-                                }
-                              </p>
-                              {e.discountTotal > 0 && <p className="text-[10px] text-amber-400">c/ desc</p>}
+                            <div className="flex items-center gap-2">
+                              <div className="text-right">
+                                <p className="text-xs font-bold text-teal-400">
+                                  {item.type === "bulk"
+                                    ? `${fmt((e.pricePerUnit || 0) / factor)}/${du}`
+                                    : `${fmt(e.pricePerPkgAfterDiscount ?? e.pricePerPkg)}/emb`
+                                  }
+                                </p>
+                                {e.discountTotal > 0 && <p className="text-[10px] text-amber-400">c/ desc</p>}
+                              </div>
+                              {onGoToHistoryPurchase && <Icon name="chevron" size={12} />}
                             </div>
                           </div>
                         ))}
@@ -575,7 +583,7 @@ export function ShoppingListSection({
               {compareOptions.length === 0 && (
                 <div className={`${isDark ? "bg-slate-900/50 border-slate-800" : "bg-slate-50 border-slate-200"} border rounded-xl px-4 py-5 text-center`}>
                   <p className="text-xs font-semibold text-slate-500">Nenhuma opção adicionada</p>
-                  <p className="text-[10px] text-slate-600 mt-1">Digite abaixo os preÃ§os e quantidades encontrados no mercado.</p>
+                  <p className="text-[10px] text-slate-600 mt-1">Digite abaixo os preços e quantidades encontrados no mercado.</p>
                 </div>
               )}
               <div className={`space-y-3 ${isDark ? "bg-slate-900/50" : "bg-slate-50"} rounded-xl p-3`}>

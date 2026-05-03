@@ -16,7 +16,12 @@ interface ReportsSectionProps {
 export function ReportsSection({ items, markets, purchases, warehouse, initialMonth }: ReportsSectionProps) {
   const { isDark } = useTheme();
   const [dateFrom, setDateFrom] = useState(initialMonth ? `${initialMonth}-01` : "");
-  const [dateTo, setDateTo] = useState(initialMonth ? `${initialMonth}-31` : "");
+  const [dateTo, setDateTo] = useState(() => {
+    if (!initialMonth) return "";
+    const [y, m] = initialMonth.split("-").map(Number);
+    const lastDay = new Date(y, m, 0).getDate(); // dia 0 do mês seguinte = último dia do mês
+    return `${initialMonth}-${String(lastDay).padStart(2, "0")}`;
+  });
 
   if (purchases.length === 0) {
     return <Empty icon="chart" title="Sem dados para relatório" sub="Registre algumas compras para visualizar os relatórios e gráficos do seu histórico." />;

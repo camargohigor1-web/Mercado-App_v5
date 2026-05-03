@@ -111,7 +111,10 @@ export function getLowStockItems(
       const stock = (warehouseItem.stock || 0) * factor;
       const avgMonthly = stats.avgMonthly * factor;
       const daysLeft = Math.round((stock / avgMonthly) * 30);
-      const threshold = item.alertDays || 15;
+      const threshold = item.alertDays ?? 15;
+
+      // alertDays === 0 significa "sem alerta para este item"
+      if (threshold === 0) return null;
 
       if (daysLeft >= threshold) return null;
 

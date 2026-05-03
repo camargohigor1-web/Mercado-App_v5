@@ -128,7 +128,11 @@ export function WarehouseSection({ items, purchases, warehouse, setWarehouse, ca
               <Badge>{item.category}</Badge>
               {item.type === "bulk" && item.displayUnit && item.displayUnit !== item.unit && <Badge color="blue">escala: {du}</Badge>}
               {item.type === "packaged" && item.pkgSize && <Badge color="amber">{fmtN(item.pkgSize, 0)} {item.pkgUnit}/emb</Badge>}
-              <Badge color="amber">alerta: {item.alertDays || 15}d</Badge>
+              {item.alertDays === 0 ? (
+                <Badge color="slate">sem alerta</Badge>
+              ) : (
+                <Badge color="amber">alerta: {item.alertDays ?? 15}d</Badge>
+              )}
             </div>
           </div>
           <Btn onClick={() => openUpdate(selectedId)} size="sm" variant="success"><Icon name="refresh" size={13} />Atualizar</Btn>
@@ -319,7 +323,7 @@ export function WarehouseSection({ items, purchases, warehouse, setWarehouse, ca
                 const stock = (w.stock || 0) * factor;
                 const avgMonthly = stats ? stats.avgMonthly * factor : 0;
                 const daysLeft = avgMonthly > 0 ? Math.round((stock / avgMonthly) * 30) : null;
-                const threshold = item.alertDays || 15;
+                const threshold = item.alertDays ?? 15;
                 const isLow = daysLeft !== null && daysLeft < threshold;
                 return (
                   <Card key={item.id} onClick={() => setSelectedId(item.id)} className={isDark ? "hover:border-slate-600" : "hover:border-slate-300"}>

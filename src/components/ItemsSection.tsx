@@ -61,7 +61,7 @@ export function ItemsSection({ items, setItems, categories, setCategories }: Ite
       displayUnit: form.type === "bulk" ? validDisplayUnit : undefined,
       pkgSize: form.type === "packaged" ? parseFloat(form.pkgSize) : undefined,
       pkgUnit: form.type === "packaged" ? form.pkgUnit : undefined,
-      alertDays: parseInt(form.alertDays) || 15,
+      alertDays: parseInt(form.alertDays) >= 0 ? parseInt(form.alertDays) : 15,
     };
     if (editing) {
       setItems(items.map(i => i.id === editing ? { ...i, ...data } : i));
@@ -188,7 +188,11 @@ export function ItemsSection({ items, setItems, categories, setCategories }: Ite
                         ) : (
                           <Badge>{fmtN(it.pkgSize || 0, 0)} {it.pkgUnit}/emb</Badge>
                         )}
-                        {(it.alertDays || 15) !== 15 && <Badge color="amber">alerta: {it.alertDays}d</Badge>}
+                        {it.alertDays === 0 ? (
+                          <Badge color="slate">sem alerta</Badge>
+                        ) : (it.alertDays || 15) !== 15 ? (
+                          <Badge color="amber">alerta: {it.alertDays}d</Badge>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -251,7 +255,8 @@ export function ItemsSection({ items, setItems, categories, setCategories }: Ite
                 <Sel label="Unidade interna" value={form.pkgUnit} onChange={v => setForm({ ...form, pkgUnit: v })} options={PKG_UNITS.map(u => ({ value: u, label: u }))} required />
               </div>
             )}
-            <Inp label="Alerta de estoque (dias)" type="number" value={form.alertDays} onChange={v => setForm({ ...form, alertDays: v })} placeholder="15" min="1" step="1" />
+            <Inp label="Alerta de estoque (dias)" type="number" value={form.alertDays} onChange={v => setForm({ ...form, alertDays: v })} placeholder="15" min="0" step="1" />
+            <p className={`text-[10px] mt-1 ${isDark ? "text-slate-600" : "text-slate-400"}`}>0 = sem alerta para este produto</p>
             <p className="text-[10px] text-slate-600">Padrão: 15 dias. Alerta quando estoque calculado for menor que este valor.</p>
             <div className="flex gap-3 pt-1">
               <Btn onClick={() => setModal(false)} variant="secondary" className="flex-1">Cancelar</Btn>

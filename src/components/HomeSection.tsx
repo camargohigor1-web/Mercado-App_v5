@@ -17,6 +17,7 @@ interface HomeSectionProps {
   onGoToItems: () => void;
   onRepeatPurchase: (purchase: Purchase) => void;
   onGoToReports: (month: string) => void;
+  onGoToHistoryPurchase: (purchaseId: string) => void;
 }
 
 function cap(str: string) { return str.charAt(0).toUpperCase() + str.slice(1); }
@@ -238,8 +239,8 @@ function Greeting({ isDark }: { isDark: boolean }) {
 // ── HomeSection principal ──────────────────────────────────────────────────────
 export function HomeSection({
   items, markets, purchases, warehouse,
-  onGoToNewPurchase, onGoToHistory, onGoToWarehouse, onGoToItems,
-  onRepeatPurchase, onGoToReports,
+  onGoToNewPurchase, onGoToWarehouse, onGoToItems,
+  onRepeatPurchase, onGoToReports, onGoToHistoryPurchase,
 }: HomeSectionProps) {
   const { isDark } = useTheme();
   const currentMonth = new Date().toISOString().slice(0, 7);
@@ -329,14 +330,23 @@ export function HomeSection({
       <div className="animate-fade-slide-up stagger-2">
         <div className="flex items-center justify-between mb-2.5">
           <p className={lbl}>{cap(monthLabel(selectedMonth))}</p>
-          {!isCurrentMonth && (
+          <div className="flex items-center gap-2">
+            {!isCurrentMonth && (
+              <button
+                onClick={() => setSelectedMonth(currentMonth)}
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-lg transition-colors ${isDark ? "text-teal-400 hover:bg-teal-500/10" : "text-teal-600 hover:bg-teal-50"}`}
+              >
+                Voltar ao atual
+              </button>
+            )}
             <button
-              onClick={() => setSelectedMonth(currentMonth)}
-              className={`text-[10px] font-bold px-2 py-0.5 rounded-lg transition-colors ${isDark ? "text-teal-400 hover:bg-teal-500/10" : "text-teal-600 hover:bg-teal-50"}`}
+              onClick={() => onGoToReports(selectedMonth)}
+              className={`text-[10px] font-bold flex items-center gap-1 px-2 py-0.5 rounded-lg transition-colors ${isDark ? "text-slate-500 hover:text-slate-300 hover:bg-slate-800" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"}`}
             >
-              Voltar ao atual
+              <Icon name="chart" size={11} />
+              Relatório
             </button>
-          )}
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           {/* Card gasto — clicável para relatório */}
@@ -449,7 +459,10 @@ export function HomeSection({
               <button onClick={() => onRepeatPurchase(lastPurchase)} className={`flex-1 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all active:scale-95 ${isDark ? "bg-teal-500/15 text-teal-400 border border-teal-500/30 hover:bg-teal-500/25" : "bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100"}`}>
                 <Icon name="copy" size={12} />Repetir
               </button>
-              <button onClick={onGoToHistory} className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors ${isDark ? "border border-slate-700 text-slate-400 hover:bg-slate-800" : "border border-slate-200 text-slate-500 hover:bg-slate-50"}`}>
+              <button
+                onClick={() => onGoToHistoryPurchase(lastPurchase.id)}
+                className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors ${isDark ? "border border-slate-700 text-slate-400 hover:bg-slate-800" : "border border-slate-200 text-slate-500 hover:bg-slate-50"}`}
+              >
                 <Icon name="history" size={12} />Ver histórico
               </button>
             </div>

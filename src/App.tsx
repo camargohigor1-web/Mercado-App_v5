@@ -60,6 +60,7 @@ export default function App() {
   const [pendingLines, setPendingLines] = useState<PurchaseLine[] | null>(null);
   const [pendingKey, setPendingKey] = useState(0);
   const [reportsMonth, setReportsMonth] = useState<string | undefined>(undefined);
+  const [openPurchaseId, setOpenPurchaseId] = useState<string | undefined>(undefined);
 
   function handleConvertToPurchase(lines: PurchaseLine[]) {
     setPendingLines(lines);
@@ -88,6 +89,11 @@ export default function App() {
   function handleGoToReports(month: string) {
     setReportsMonth(month);
     setTab("reports");
+  }
+
+  function handleGoToHistoryPurchase(purchaseId: string) {
+    setOpenPurchaseId(purchaseId);
+    setTab("history");
   }
 
   // ── Restore from backup ────────────────────────────────────────────────────
@@ -156,6 +162,7 @@ export default function App() {
               onGoToItems={() => setTab("items")}
               onRepeatPurchase={handleRepeatPurchase}
               onGoToReports={handleGoToReports}
+              onGoToHistoryPurchase={handleGoToHistoryPurchase}
             />
           )}
           {tab === "shopping" && (
@@ -168,6 +175,7 @@ export default function App() {
               setShoppingList={setList}
               onConvertToPurchase={handleConvertToPurchase}
               onGoToItems={() => setTab("items")}
+              onGoToHistoryPurchase={handleGoToHistoryPurchase}
             />
           )}
           {tab === "history" && (
@@ -178,6 +186,7 @@ export default function App() {
               warehouse={warehouse}
               onGoToNewPurchase={handleGoToNewPurchase}
               onRepeatPurchase={handleRepeatPurchase}
+              initialPurchaseId={openPurchaseId}
             />
           )}
           {tab === "warehouse" && (
