@@ -24,6 +24,7 @@ export function ShoppingListSection({
   const [listMode, setListMode] = useState<"plan" | "market">("plan");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("");
+  const [filterCatAdd, setFilterCatAdd] = useState("");
   const [editModal, setEditModal] = useState(false);
   const [editName, setEditName] = useState("");
   const [savedListsModal, setSavedListsModal] = useState(false);
@@ -46,7 +47,10 @@ export function ShoppingListSection({
     stats: calcStats(i.id, items, purchases, warehouse.flatMap(w => w.entries || [])),
   }));
   const available = withStats.filter(({ item }) => !inList.has(item.id));
-  const filtAvail = available.filter(({ item }) => item.name.toLowerCase().includes(search.toLowerCase()));
+  const addCategoryOptions = [...new Set(available.map(({ item }) => item.category || "Sem categoria"))].sort();
+  const filtAvail = available
+    .filter(({ item }) => item.name.toLowerCase().includes(search.toLowerCase()))
+    .filter(({ item }) => !filterCatAdd || (item.category || "Sem categoria") === filterCatAdd);
 
   function add(itemId: string) { setShoppingList([...shoppingList, { itemId, done: false, saved: false }]); }
   function remove(itemId: string) { setShoppingList(shoppingList.filter(l => l.saved || (l as ShoppingListItem).itemId !== itemId)); }
@@ -433,6 +437,25 @@ export function ShoppingListSection({
       {/* Add items */}
       {listMode === "plan" && <div>
         <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-2">Adicionar à lista</p>
+        {addCategoryOptions.length > 1 && (
+          <div className="flex gap-1.5 flex-wrap mb-2">
+            <button
+              onClick={() => setFilterCatAdd("")}
+              className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all ${!filterCatAdd ? "bg-teal-500 text-white" : isDark ? "bg-slate-800 text-slate-400 hover:text-slate-200" : "bg-slate-100 text-slate-500 hover:text-slate-700"}`}
+            >
+              Todas
+            </button>
+            {addCategoryOptions.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setFilterCatAdd(cat === filterCatAdd ? "" : cat)}
+                className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all ${filterCatAdd === cat ? "bg-teal-500 text-white" : isDark ? "bg-slate-800 text-slate-400 hover:text-slate-200" : "bg-slate-100 text-slate-500 hover:text-slate-700"}`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
         <Inp value={search} onChange={setSearch} placeholder="Buscar produto..." />
         {filtAvail.length === 0 ? (
           items.length === 0 ? (
