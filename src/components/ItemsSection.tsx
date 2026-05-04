@@ -10,13 +10,14 @@ interface ItemsSectionProps {
   setItems: (items: Item[]) => void;
   categories: string[];
   setCategories: (cats: string[]) => void;
+  initialSearch?: string;
 }
 
-export function ItemsSection({ items, setItems, categories, setCategories }: ItemsSectionProps) {
+export function ItemsSection({ items, setItems, categories, setCategories, initialSearch }: ItemsSectionProps) {
   const { isDark } = useTheme();
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch?.trim() ?? "");
   const [catModal, setCatModal] = useState(false);
   const [newCat, setNewCat] = useState("");
   const [editCat, setEditCat] = useState<string | null>(null);

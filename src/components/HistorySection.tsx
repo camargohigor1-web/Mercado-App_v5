@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTheme } from "../hooks/useTheme";
 import { useBrowserBackClose } from "../hooks/useBrowserBackClose";
 import { Icon } from "./Icon";
@@ -14,18 +14,44 @@ interface HistorySectionProps {
   onGoToNewPurchase?: () => void;
   onRepeatPurchase?: (purchase: Purchase) => void;
   initialPurchaseId?: string;
+  initialHighlightedProductId?: string;
+  onNavigateAway?: () => void;
+  initialSearch?: string;
 }
 
-export function HistorySection({ items, markets, purchases, warehouse, onGoToNewPurchase, onRepeatPurchase, initialPurchaseId }: HistorySectionProps) {
+export function HistorySection({ items, markets, purchases, warehouse, onGoToNewPurchase, onRepeatPurchase, initialPurchaseId, initialHighlightedProductId, onNavigateAway, initialSearch }: HistorySectionProps) {
   const { isDark } = useTheme();
   const initialPurchase = initialPurchaseId ? purchases.find(p => p.id === initialPurchaseId) ?? null : null;
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch?.trim() ?? "");
   const [filterCat, setFilterCat] = useState("");
   const [selectedItem, setSelectedItem] = useState<{ item: Item; stats: ReturnType<typeof calcStats> } | null>(null);
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(initialPurchase);
   const [subTab, setSubTab] = useState<"products" | "purchases">(initialPurchase ? "purchases" : "products");
+  const [highlightedProductId, setHighlightedProductId] = useState<string | undefined>(initialHighlightedProductId);
+  const [returnToItem, setReturnToItem] = useState<{ item: Item; stats: ReturnType<typeof calcStats> } | null>(null);
   const closeSelectedItem = useBrowserBackClose(selectedItem !== null, () => setSelectedItem(null));
-  const closeSelectedPurchase = useBrowserBackClose(selectedPurchase !== null, () => setSelectedPurchase(null));
+  const closeSelectedPurchase = useBrowserBackClose(selectedPurchase !== null, () => {
+    setSelectedPurchase(null);
+    setHighlightedProductId(undefined);
+    if (returnToItem) {
+      setSelectedItem(returnToItem);
+      setReturnToItem(null);
+    } else {
+      onNavigateAway?.();
+    }
+  });
+
+  // Scroll to highlighted item when purchase opens, then fade out after 2s
+  useEffect(() => {
+    if (highlightedProductId && selectedPurchase) {
+      const el = document.getElementById(`item-${highlightedProductId}`);
+      if (el) {
+        setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "center" }), 150);
+      }
+      const t = setTimeout(() => setHighlightedProductId(undefined), 2500);
+      return () => clearTimeout(t);
+    }
+  }, [highlightedProductId, selectedPurchase]);
 
   const getMkt = (id: string) => markets.find(m => m.id === id)?.name || "Mercado";
   const getItem = (id: string) => items.find(i => i.id === id);
@@ -149,8 +175,17 @@ export function HistorySection({ items, markets, purchases, warehouse, onGoToNew
             {allEntries.map((e, i) => (
               <Card
                 key={i}
-                onClick={() => onRepeatPurchase && setSelectedPurchase(purchases.find(p => p.id === e.purchaseId) ?? null)}
-                className={onRepeatPurchase ? "cursor-pointer hover:border-teal-500/40 active:scale-[0.98] transition-all" : ""}
+                onClick={() => {
+                  const purchase = purchases.find(p => p.id === e.purchaseId) ?? null;
+                  if (purchase) {
+                    setHighlightedProductId(item.id);
+                    setReturnToItem(selectedItem);
+                    setSelectedPurchase(purchase);
+                    setSelectedItem(null);
+                    setSubTab("purchases");
+                  }
+                }}
+                className="cursor-pointer hover:border-teal-500/40 active:scale-[0.98] transition-all"
               >
                 <div className="flex justify-between items-start">
                   <div>
@@ -196,6 +231,13 @@ export function HistorySection({ items, markets, purchases, warehouse, onGoToNew
         <div className="flex items-center gap-3">
           <button onClick={closeSelectedPurchase} className={`${isDark ? "text-slate-500 hover:text-slate-200" : "text-slate-400 hover:text-slate-700"} p-1`}><Icon name="back" size={20} /></button>
           <div className="flex-1">
+            {returnToItem && (
+              <p className="text-[10px] text-slate-500 mb-0.5 flex items-center gap-1">
+                <span className="truncate max-w-[120px]">{returnToItem.item.name}</span>
+                <span className="text-slate-700">›</span>
+                <span>Compra</span>
+              </p>
+            )}
             <h2 className={`text-base font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>{getMkt(p.marketId)}</h2>
             <p className="text-xs text-slate-500">{new Date(p.date + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}</p>
           </div>
@@ -205,9 +247,10 @@ export function HistorySection({ items, markets, purchases, warehouse, onGoToNew
             const it = getItem(l.itemId); if (!it) return null;
             const factor = getDisplayFactor(it);
             const du2 = getDisplayUnit(it);
+            const isHighlighted = highlightedProductId === l.itemId;
             return (
-              <Card key={i}>
-                <div className="flex justify-between items-start gap-3">
+              <Card key={i} className={`highlight-fadeable${isHighlighted ? " highlighted-item" : ""}`}>
+                <div id={`item-${l.itemId}`} className="flex justify-between items-start gap-3">
                   <div className="flex-1 min-w-0">
                     <p className={`${isDark ? "text-slate-100" : "text-slate-900"} text-sm font-semibold`}>{it.name}</p>
                     {l.brand && <p className="text-xs text-slate-500 mt-0.5">Marca: {l.brand}</p>}

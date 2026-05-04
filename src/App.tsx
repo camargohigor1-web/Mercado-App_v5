@@ -61,6 +61,9 @@ export default function App() {
   const [pendingKey, setPendingKey] = useState(0);
   const [reportsMonth, setReportsMonth] = useState<string | undefined>(undefined);
   const [openPurchaseId, setOpenPurchaseId] = useState<string | undefined>(undefined);
+  const [highlightedProductId, setHighlightedProductId] = useState<string | undefined>(undefined);
+  const [warehouseSelectionCount, setWarehouseSelectionCount] = useState(0);
+  const [pendingTab, setPendingTab] = useState<string | null>(null);
 
   function handleConvertToPurchase(lines: PurchaseLine[]) {
     setPendingLines(lines);
@@ -96,6 +99,16 @@ export default function App() {
     setTab("history");
   }
 
+  // ── Tab navigation guard (warehouse selection) ─────────────────────────────
+  function navigateTo(dest: string) {
+    if (tab === "warehouse" && warehouseSelectionCount > 0 && dest !== "warehouse") {
+      setPendingTab(dest);
+    } else {
+      setGlobalSearch("");
+      setTab(dest);
+    }
+  }
+
   // ── Restore from backup ────────────────────────────────────────────────────
   function handleRestore(data: {
     items: Item[];
@@ -116,6 +129,9 @@ export default function App() {
 
   const isDark   = theme === "dark";
   const isExtra  = EXTRA_TABS.includes(tab);
+  const SEARCHABLE_TABS = ["history", "warehouse", "shopping", "items", "markets", "purchases"];
+  const isSearchable = SEARCHABLE_TABS.includes(tab);
+  const [globalSearch, setGlobalSearch] = useState("");
 
   return (
     <ThemeCtx.Provider value={{ isDark }}>
@@ -135,9 +151,45 @@ export default function App() {
               <p className="text-[9px] font-black text-teal-500 uppercase tracking-widest leading-none">MercadoApp</p>
               <p className={`text-sm font-black truncate ${isDark ? "text-slate-200" : "text-slate-800"} leading-tight mt-0.5`}>{TITLES[tab]}</p>
             </div>
-            {isExtra && (
+            {isSearchable && (
+              <div className="relative flex-shrink-0">
+                {globalSearch ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      value={globalSearch}
+                      onChange={e => setGlobalSearch(e.target.value)}
+                      autoFocus
+                      placeholder="Buscar..."
+                      className={`w-36 text-xs px-3 py-1.5 rounded-xl border focus:outline-none focus:border-teal-500 transition-all ${isDark ? "bg-slate-800 border-slate-700 text-slate-100 placeholder-slate-600" : "bg-slate-100 border-slate-200 text-slate-900 placeholder-slate-400"}`}
+                    />
+                    <button
+                      onClick={() => setGlobalSearch("")}
+                      className={`p-1.5 rounded-xl transition-colors ${isDark ? "text-slate-500 hover:text-slate-200 hover:bg-slate-800" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"}`}
+                    >
+                      <Icon name="x" size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setGlobalSearch(" ")}
+                    className={`p-1.5 rounded-xl transition-colors ${isDark ? "text-slate-500 hover:text-slate-200 hover:bg-slate-800" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"}`}
+                  >
+                    <Icon name="search" size={16} />
+                  </button>
+                )}
+              </div>
+            )}
+            {isExtra && !isSearchable && (
               <button
-                onClick={() => setTab("home")}
+                onClick={() => navigateTo("home")}
+                className={`${isDark ? "text-slate-500 hover:text-slate-200 hover:bg-slate-800" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"} p-1.5 rounded-xl transition-colors flex-shrink-0`}
+              >
+                <Icon name="x" size={16} />
+              </button>
+            )}
+            {isExtra && isSearchable && !globalSearch && (
+              <button
+                onClick={() => navigateTo("home")}
                 className={`${isDark ? "text-slate-500 hover:text-slate-200 hover:bg-slate-800" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"} p-1.5 rounded-xl transition-colors flex-shrink-0`}
               >
                 <Icon name="x" size={16} />
@@ -187,6 +239,9 @@ export default function App() {
               onGoToNewPurchase={handleGoToNewPurchase}
               onRepeatPurchase={handleRepeatPurchase}
               initialPurchaseId={openPurchaseId}
+              initialHighlightedProductId={highlightedProductId}
+              onNavigateAway={() => { setOpenPurchaseId(undefined); setHighlightedProductId(undefined); }}
+              initialSearch={globalSearch}
             />
           )}
           {tab === "warehouse" && (
@@ -199,6 +254,8 @@ export default function App() {
               shoppingList={list}
               setShoppingList={setList}
               onGoToNewPurchase={handleGoToNewPurchase}
+              onSelectionChange={setWarehouseSelectionCount}
+              initialSearch={globalSearch}
             />
           )}
           {tab === "purchases" && (
@@ -220,6 +277,7 @@ export default function App() {
               setItems={setItems}
               categories={categories}
               setCategories={setCategories}
+              initialSearch={globalSearch}
             />
           )}
           {tab === "markets" && (
@@ -256,15 +314,15 @@ export default function App() {
           <div className="flex items-end pb-2">
 
             {/* Lista */}
-            <NavTab id="shopping" label="Lista" icon="list" active={tab === "shopping"} isDark={isDark} onClick={() => setTab("shopping")} />
+            <NavTab id="shopping" label="Lista" icon="list" active={tab === "shopping"} isDark={isDark} onClick={() => navigateTo("shopping")} />
 
             {/* Histórico */}
-            <NavTab id="history" label="Hist." icon="history" active={tab === "history"} isDark={isDark} onClick={() => setTab("history")} />
+            <NavTab id="history" label="Hist." icon="history" active={tab === "history"} isDark={isDark} onClick={() => navigateTo("history")} />
 
             {/* Início — centro destacado */}
             <div className="flex-1 flex flex-col items-center pb-1">
               <button
-                onClick={() => setTab("home")}
+                onClick={() => navigateTo("home")}
                 className={`w-14 h-14 -mt-5 rounded-2xl flex items-center justify-center shadow-xl transition-all active:scale-95 border-4 fab-pulse animate-scale-in ${
                   tab === "home"
                     ? "bg-teal-500 text-white shadow-teal-500/40"
@@ -282,7 +340,7 @@ export default function App() {
             </div>
 
             {/* Armazém */}
-            <NavTab id="warehouse" label="Armazém" icon="warehouse" active={tab === "warehouse"} isDark={isDark} onClick={() => setTab("warehouse")} />
+            <NavTab id="warehouse" label="Armazém" icon="warehouse" active={tab === "warehouse"} isDark={isDark} onClick={() => navigateTo("warehouse")} />
 
             {/* Mais */}
             <button
@@ -296,6 +354,40 @@ export default function App() {
 
           </div>
         </div>
+
+        {/* ── Leave-guard modal (warehouse selection) ────────────────────────── */}
+        {pendingTab && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center p-4 pb-8">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setPendingTab(null)} />
+            <div className={`relative w-full max-w-sm rounded-2xl p-5 space-y-4 shadow-2xl ${isDark ? "bg-slate-900 border border-slate-800" : "bg-white border border-slate-200"}`}>
+              <div className="flex items-start gap-3">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? "bg-amber-500/15 text-amber-400" : "bg-amber-50 text-amber-600"}`}>
+                  <Icon name="warn" size={16} />
+                </div>
+                <div>
+                  <p className={`font-black text-sm ${isDark ? "text-slate-100" : "text-slate-900"}`}>Sair com seleção ativa?</p>
+                  <p className={`text-xs mt-1 ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                    {warehouseSelectionCount} {warehouseSelectionCount === 1 ? "item selecionado" : "itens selecionados"} no armazém. A seleção será perdida ao sair.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setPendingTab(null)}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${isDark ? "bg-slate-800 text-slate-200 hover:bg-slate-700" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => { setGlobalSearch(""); setTab(pendingTab); setWarehouseSelectionCount(0); setPendingTab(null); }}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-amber-500 text-white hover:bg-amber-400 transition-all"
+                >
+                  Sair assim mesmo
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── Right Drawer ───────────────────────────────────────────────────── */}
         <RightDrawer
