@@ -2,9 +2,10 @@ import { useState, useCallback } from "react";
 
 const FOLDER_NAME = "MercadoApp";
 const MAX_BACKUPS = 10;
-const SCOPE = "https://www.googleapis.com/auth/drive.file";
+const SCOPE = "https://www.googleapis.com/auth/drive";
 const TOKEN_KEY = "mkt3_google_access_token";
 const TOKEN_EXPIRY_KEY = "mkt3_google_token_expiry";
+const TOKEN_SCOPE_KEY = "mkt3_google_token_scope";
 
 export type DriveStatus =
   | { type: "idle" }
@@ -17,6 +18,7 @@ function saveToken(token: string, expiresIn: number) {
   try {
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(TOKEN_EXPIRY_KEY, String(Date.now() + expiresIn * 1000));
+    localStorage.setItem(TOKEN_SCOPE_KEY, SCOPE);
   } catch {}
 }
 
@@ -24,7 +26,8 @@ function loadToken(): string | null {
   try {
     const token = localStorage.getItem(TOKEN_KEY);
     const expiry = Number(localStorage.getItem(TOKEN_EXPIRY_KEY) || "0");
-    if (token && Date.now() < expiry - 60_000) return token;
+    const scope = localStorage.getItem(TOKEN_SCOPE_KEY);
+    if (token && scope === SCOPE && Date.now() < expiry - 60_000) return token;
     return null;
   } catch {
     return null;
@@ -35,7 +38,15 @@ function clearToken() {
   try {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TOKEN_EXPIRY_KEY);
+    localStorage.removeItem(TOKEN_SCOPE_KEY);
   } catch {}
+}
+
+type BackupFile = { id: string; name: string; createdTime: string };
+type DriveFolder = { id: string; name: string; createdTime?: string; modifiedTime?: string; shared?: boolean; ownedByMe?: boolean };
+
+function escapeDriveQueryValue(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
 export function useGoogleDrive(clientId: string) {
@@ -86,15 +97,46 @@ export function useGoogleDrive(clientId: string) {
   }
 
   async function getOrCreateFolder(token: string): Promise<string> {
-    // Search for existing folder
-    const q = encodeURIComponent(`name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
-    const res = await driveRequest(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, {}, token);
+    const q = encodeURIComponent(`name='${escapeDriveQueryValue(FOLDER_NAME)}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+    const res = await driveRequest(
+      `https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&includeItemsFromAllDrives=true&supportsAllDrives=true&fields=files(id,name,createdTime,modifiedTime,shared,ownedByMe)`,
+      {},
+      token
+    );
     const data = await res.json();
-    if (data.files?.length > 0) return data.files[0].id;
+    const folders = (data.files || []) as DriveFolder[];
+
+    if (folders.length === 1) return folders[0].id;
+
+    if (folders.length > 1) {
+      const foldersWithBackups = await Promise.all(
+        folders.map(async folder => {
+          try {
+            return { folder, backups: await listBackups(token, folder.id) };
+          } catch {
+            return { folder, backups: [] as BackupFile[] };
+          }
+        })
+      );
+      const byLatestBackup = (a: { backups: BackupFile[] }, b: { backups: BackupFile[] }) =>
+        new Date(b.backups[0]?.createdTime || 0).getTime() - new Date(a.backups[0]?.createdTime || 0).getTime();
+      const sharedWithBackups = foldersWithBackups
+        .filter(({ folder, backups }) => folder.shared && !folder.ownedByMe && backups.length > 0)
+        .sort(byLatestBackup)[0];
+      if (sharedWithBackups) return sharedWithBackups.folder.id;
+
+      const sharedFolder = folders.find(folder => folder.shared && !folder.ownedByMe);
+      if (sharedFolder) return sharedFolder.id;
+
+      const folderWithBackups = foldersWithBackups.filter(({ backups }) => backups.length > 0).sort(byLatestBackup)[0];
+      if (folderWithBackups) return folderWithBackups.folder.id;
+
+      return folders[0].id;
+    }
 
     // Create folder
     const createRes = await driveRequest(
-      "https://www.googleapis.com/drive/v3/files",
+      "https://www.googleapis.com/drive/v3/files?fields=id",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -109,18 +151,22 @@ export function useGoogleDrive(clientId: string) {
   async function listBackups(token: string, folderId: string) {
     const q = encodeURIComponent(`'${folderId}' in parents and name contains 'mercadoapp-backup' and trashed=false`);
     const res = await driveRequest(
-      `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,createdTime)&orderBy=createdTime desc`,
+      `https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&includeItemsFromAllDrives=true&supportsAllDrives=true&fields=files(id,name,createdTime)&orderBy=createdTime desc`,
       {},
       token
     );
     const data = await res.json();
-    return (data.files || []) as { id: string; name: string; createdTime: string }[];
+    return (data.files || []) as BackupFile[];
   }
 
-  async function pruneOldBackups(token: string, files: { id: string; name: string; createdTime: string }[]) {
+  async function pruneOldBackups(token: string, files: BackupFile[]) {
     const toDelete = files.slice(MAX_BACKUPS);
     for (const f of toDelete) {
-      await driveRequest(`https://www.googleapis.com/drive/v3/files/${f.id}`, { method: "DELETE" }, token);
+      try {
+        await driveRequest(`https://www.googleapis.com/drive/v3/files/${f.id}?supportsAllDrives=true`, { method: "DELETE" }, token);
+      } catch (e) {
+        console.warn("Nao foi possivel remover backup antigo do Drive.", e);
+      }
     }
   }
 
@@ -146,7 +192,7 @@ export function useGoogleDrive(clientId: string) {
       ].join("");
 
       await driveRequest(
-        "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+        "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true",
         {
           method: "POST",
           headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
@@ -197,7 +243,7 @@ export function useGoogleDrive(clientId: string) {
           setStatus({ type: "loading", msg: "Importando dados..." });
           try {
             const res = await driveRequest(
-              `https://www.googleapis.com/drive/v3/files/${latest.id}?alt=media`,
+              `https://www.googleapis.com/drive/v3/files/${latest.id}?alt=media&supportsAllDrives=true`,
               {},
               token
             );
