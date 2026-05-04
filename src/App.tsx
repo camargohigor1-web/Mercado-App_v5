@@ -104,7 +104,6 @@ export default function App() {
     if (tab === "warehouse" && warehouseSelectionCount > 0 && dest !== "warehouse") {
       setPendingTab(dest);
     } else {
-      setGlobalSearch("");
       setTab(dest);
     }
   }
@@ -129,9 +128,6 @@ export default function App() {
 
   const isDark   = theme === "dark";
   const isExtra  = EXTRA_TABS.includes(tab);
-  const SEARCHABLE_TABS = ["history", "warehouse", "shopping", "items", "markets", "purchases"];
-  const isSearchable = SEARCHABLE_TABS.includes(tab);
-  const [globalSearch, setGlobalSearch] = useState("");
 
   return (
     <ThemeCtx.Provider value={{ isDark }}>
@@ -141,7 +137,6 @@ export default function App() {
         {/* ── Header ─────────────────────────────────────────────────────────── */}
         <div className={`sticky top-0 z-20 ${isDark ? "bg-slate-950/95" : "bg-white/95"} backdrop-blur px-4 pt-6 pb-3 ${isDark ? "border-b border-slate-900" : "border-b border-slate-100"}`}>
           <div className="flex items-center gap-3">
-            {/* App icon */}
             <div className="w-8 h-8 rounded-xl flex items-center justify-center shadow-lg shadow-teal-500/30 flex-shrink-0 overflow-hidden" style={{ background: "linear-gradient(135deg,#0f766e,#14b8a6)" }}>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M6 2 3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/>
@@ -151,43 +146,7 @@ export default function App() {
               <p className="text-[9px] font-black text-teal-500 uppercase tracking-widest leading-none">MercadoApp</p>
               <p className={`text-sm font-black truncate ${isDark ? "text-slate-200" : "text-slate-800"} leading-tight mt-0.5`}>{TITLES[tab]}</p>
             </div>
-            {isSearchable && (
-              <div className="relative flex-shrink-0">
-                {globalSearch ? (
-                  <div className="flex items-center gap-1">
-                    <input
-                      value={globalSearch}
-                      onChange={e => setGlobalSearch(e.target.value)}
-                      autoFocus
-                      placeholder="Buscar..."
-                      className={`w-36 text-xs px-3 py-1.5 rounded-xl border focus:outline-none focus:border-teal-500 transition-all ${isDark ? "bg-slate-800 border-slate-700 text-slate-100 placeholder-slate-600" : "bg-slate-100 border-slate-200 text-slate-900 placeholder-slate-400"}`}
-                    />
-                    <button
-                      onClick={() => setGlobalSearch("")}
-                      className={`p-1.5 rounded-xl transition-colors ${isDark ? "text-slate-500 hover:text-slate-200 hover:bg-slate-800" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"}`}
-                    >
-                      <Icon name="x" size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setGlobalSearch(" ")}
-                    className={`p-1.5 rounded-xl transition-colors ${isDark ? "text-slate-500 hover:text-slate-200 hover:bg-slate-800" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"}`}
-                  >
-                    <Icon name="search" size={16} />
-                  </button>
-                )}
-              </div>
-            )}
-            {isExtra && !isSearchable && (
-              <button
-                onClick={() => navigateTo("home")}
-                className={`${isDark ? "text-slate-500 hover:text-slate-200 hover:bg-slate-800" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"} p-1.5 rounded-xl transition-colors flex-shrink-0`}
-              >
-                <Icon name="x" size={16} />
-              </button>
-            )}
-            {isExtra && isSearchable && !globalSearch && (
+            {isExtra && (
               <button
                 onClick={() => navigateTo("home")}
                 className={`${isDark ? "text-slate-500 hover:text-slate-200 hover:bg-slate-800" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"} p-1.5 rounded-xl transition-colors flex-shrink-0`}
@@ -241,7 +200,6 @@ export default function App() {
               initialPurchaseId={openPurchaseId}
               initialHighlightedProductId={highlightedProductId}
               onNavigateAway={() => { setOpenPurchaseId(undefined); setHighlightedProductId(undefined); }}
-              initialSearch={globalSearch}
             />
           )}
           {tab === "warehouse" && (
@@ -255,7 +213,6 @@ export default function App() {
               setShoppingList={setList}
               onGoToNewPurchase={handleGoToNewPurchase}
               onSelectionChange={setWarehouseSelectionCount}
-              initialSearch={globalSearch}
             />
           )}
           {tab === "purchases" && (
@@ -277,7 +234,6 @@ export default function App() {
               setItems={setItems}
               categories={categories}
               setCategories={setCategories}
-              initialSearch={globalSearch}
             />
           )}
           {tab === "markets" && (
@@ -379,7 +335,7 @@ export default function App() {
                   Cancelar
                 </button>
                 <button
-                  onClick={() => { setGlobalSearch(""); setTab(pendingTab); setWarehouseSelectionCount(0); setPendingTab(null); }}
+                  onClick={() => { setTab(pendingTab); setWarehouseSelectionCount(0); setPendingTab(null); }}
                   className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-amber-500 text-white hover:bg-amber-400 transition-all"
                 >
                   Sair assim mesmo

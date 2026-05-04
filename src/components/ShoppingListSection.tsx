@@ -23,6 +23,7 @@ export function ShoppingListSection({
   const { isDark } = useTheme();
   const [listMode, setListMode] = useState<"plan" | "market">("plan");
   const [search, setSearch] = useState("");
+  const [filterCat, setFilterCat] = useState("");
   const [editModal, setEditModal] = useState(false);
   const [editName, setEditName] = useState("");
   const [savedListsModal, setSavedListsModal] = useState(false);
@@ -186,6 +187,11 @@ export function ShoppingListSection({
     pendingByCategory[cat].push({ itemId, item, stats, done, saved: false });
   });
 
+  const categoryOptions = Object.keys(pendingByCategory).sort();
+  const filteredByCategory = filterCat
+    ? { [filterCat]: pendingByCategory[filterCat] ?? [] }
+    : pendingByCategory;
+
   return (
     <div className="space-y-4">
       <div className={`flex gap-2 ${isDark ? "bg-slate-900" : "bg-slate-100"} rounded-xl p-1`}>
@@ -239,10 +245,31 @@ export function ShoppingListSection({
               {done.length > 0 && <Btn onClick={clearDone} variant="ghost" size="sm">Limpar</Btn>}
             </div>
 
+            {/* Category filter chips */}
+            {categoryOptions.length > 1 && (
+              <div className="flex gap-1.5 flex-wrap">
+                <button
+                  onClick={() => setFilterCat("")}
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all ${!filterCat ? "bg-blue-500 text-white" : isDark ? "bg-slate-800 text-slate-400 hover:text-slate-200" : "bg-slate-100 text-slate-500 hover:text-slate-700"}`}
+                >
+                  Todas
+                </button>
+                {categoryOptions.map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setFilterCat(cat === filterCat ? "" : cat)}
+                    className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all ${filterCat === cat ? "bg-blue-500 text-white" : isDark ? "bg-slate-800 text-slate-400 hover:text-slate-200" : "bg-slate-100 text-slate-500 hover:text-slate-700"}`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {pending.length === 0 ? (
               <Empty icon="check" title="Tudo marcado" sub="Os itens da lista foram marcados como comprados." />
             ) : (
-              Object.entries(pendingByCategory).map(([cat, catItems]) => (
+              Object.entries(filteredByCategory).map(([cat, catItems]) => (
                 <div key={cat}>
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 px-1">{cat}</p>
                   <div className="space-y-2">
@@ -320,8 +347,32 @@ export function ShoppingListSection({
       {/* Active list */}
       {listMode === "plan" && listFull.length > 0 && (
         <div className="space-y-2">
-          <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Para comprar ({pending.length})</p>
-          {Object.entries(pendingByCategory).map(([cat, catItems]) => (
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Para comprar ({pending.length})</p>
+          </div>
+
+          {/* Category filter chips */}
+          {categoryOptions.length > 1 && (
+            <div className="flex gap-1.5 flex-wrap">
+              <button
+                onClick={() => setFilterCat("")}
+                className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all ${!filterCat ? "bg-teal-500 text-white" : isDark ? "bg-slate-800 text-slate-400 hover:text-slate-200" : "bg-slate-100 text-slate-500 hover:text-slate-700"}`}
+              >
+                Todas
+              </button>
+              {categoryOptions.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setFilterCat(cat === filterCat ? "" : cat)}
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all ${filterCat === cat ? "bg-teal-500 text-white" : isDark ? "bg-slate-800 text-slate-400 hover:text-slate-200" : "bg-slate-100 text-slate-500 hover:text-slate-700"}`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {Object.entries(filteredByCategory).map(([cat, catItems]) => (
             <div key={cat}>
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 px-1">{cat}</p>
               <div className="space-y-2">
