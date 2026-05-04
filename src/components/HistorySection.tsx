@@ -29,7 +29,14 @@ export function HistorySection({ items, markets, purchases, warehouse, onGoToNew
   const [subTab, setSubTab] = useState<"products" | "purchases">(initialPurchase ? "purchases" : "products");
   const [highlightedProductId, setHighlightedProductId] = useState<string | undefined>(initialHighlightedProductId);
   const [returnToItem, setReturnToItem] = useState<{ item: Item; stats: ReturnType<typeof calcStats> } | null>(null);
-  const closeSelectedItem = useBrowserBackClose(selectedItem !== null, () => setSelectedItem(null));
+  const [returnToPurchase, setReturnToPurchase] = useState<Purchase | null>(null);
+  const closeSelectedItem = useBrowserBackClose(selectedItem !== null, () => {
+    setSelectedItem(null);
+    if (returnToPurchase) {
+      setSelectedPurchase(returnToPurchase);
+      setReturnToPurchase(null);
+    }
+  });
   const closeSelectedPurchase = useBrowserBackClose(selectedPurchase !== null, () => {
     setSelectedPurchase(null);
     setHighlightedProductId(undefined);
@@ -114,6 +121,13 @@ export function HistorySection({ items, markets, purchases, warehouse, onGoToNew
         <div className="flex items-center gap-3">
           <button onClick={closeSelectedItem} className={`${isDark ? "text-slate-500 hover:text-slate-200" : "text-slate-400 hover:text-slate-700"} p-1`}><Icon name="back" size={20} /></button>
           <div className="flex-1">
+            {returnToPurchase && (
+              <p className="text-[10px] text-slate-500 mb-0.5 flex items-center gap-1">
+                <span className="truncate max-w-[120px]">{getMkt(returnToPurchase.marketId)}</span>
+                <span className="text-slate-700">›</span>
+                <span>Produto</span>
+              </p>
+            )}
             <h2 className={`text-base font-black ${isDark ? "text-slate-100" : "text-slate-900"}`}>{item.name}</h2>
             <div className="flex gap-1.5 mt-0.5 flex-wrap">
               <Badge color={item.type === "bulk" ? "teal" : "amber"}>{item.type === "bulk" ? "Granel" : "Emb. fixa"}</Badge>
@@ -251,8 +265,16 @@ export function HistorySection({ items, markets, purchases, warehouse, onGoToNew
             return (
               <Card key={i} className={`highlight-fadeable${isHighlighted ? " highlighted-item" : ""}`}>
                 <div id={`item-${l.itemId}`} className="flex justify-between items-start gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className={`${isDark ? "text-slate-100" : "text-slate-900"} text-sm font-semibold`}>{it.name}</p>
+                  <div
+                    className="flex-1 min-w-0 cursor-pointer"
+                    onClick={() => {
+                      const stats = calcStats(it.id, items, purchases, []);
+                      setReturnToPurchase(selectedPurchase);
+                      setSelectedPurchase(null);
+                      setSelectedItem({ item: it, stats });
+                    }}
+                  >
+                    <p className={`${isDark ? "text-slate-100 hover:text-teal-400" : "text-slate-900 hover:text-teal-600"} text-sm font-semibold transition-colors`}>{it.name}</p>
                     {l.brand && <p className="text-xs text-slate-500 mt-0.5">Marca: {l.brand}</p>}
                     {it.type === "bulk" ? (
                       <>
@@ -270,7 +292,10 @@ export function HistorySection({ items, markets, purchases, warehouse, onGoToNew
                       </>
                     )}
                   </div>
-                  <p className="text-teal-400 font-black text-sm flex-shrink-0">{fmt(l.total)}</p>
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <p className="text-teal-400 font-black text-sm">{fmt(l.total)}</p>
+                    <span className={`${isDark ? "text-slate-700" : "text-slate-300"}`}><Icon name="chevron" size={14} /></span>
+                  </div>
                 </div>
               </Card>
             );
