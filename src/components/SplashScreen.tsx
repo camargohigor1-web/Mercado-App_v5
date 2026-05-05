@@ -1,6 +1,3 @@
-Splash screen
-
-
 import { useEffect, useState } from "react";
 
 interface SplashScreenProps {
